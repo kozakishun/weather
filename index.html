@@ -1,0 +1,1560 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>気象データ分析ツール</title>
+<style>
+  :root{
+    --bg:#f4f6f9; --panel:#ffffff; --ink:#1f2937; --muted:#6b7280;
+    --line:#e5e7eb; --accent:#2563eb; --accent2:#e4572e; --ok:#16a34a;
+    --warn:#b45309; --chip:#eef2ff; --shadow:0 1px 3px rgba(0,0,0,.08);
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:"Segoe UI","Hiragino Kaku Gothic ProN","Yu Gothic UI",Meiryo,sans-serif;
+    background:var(--bg);color:var(--ink);font-size:14px;line-height:1.6}
+  header{background:linear-gradient(120deg,#1e3a8a,#2563eb);color:#fff;padding:16px 22px}
+  header h1{margin:0;font-size:19px;font-weight:700}
+  header .sub{font-size:12px;opacity:.9;margin-top:3px}
+  .wrap{max-width:1180px;margin:0 auto;padding:0 16px}
+  .tabs{display:flex;gap:4px;flex-wrap:wrap;background:#fff;border-bottom:1px solid var(--line);
+    position:sticky;top:0;z-index:20;padding:0 16px}
+  .tabs button{border:none;background:none;padding:12px 14px;font-size:14px;cursor:pointer;
+    color:var(--muted);border-bottom:3px solid transparent;font-weight:600}
+  .tabs button.active{color:var(--accent);border-bottom-color:var(--accent)}
+  .tabs button:hover{color:var(--ink)}
+  main{padding:18px 0 60px}
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:10px;
+    padding:18px;margin-bottom:16px;box-shadow:var(--shadow)}
+  .panel h2{margin:0 0 4px;font-size:16px}
+  .panel .desc{color:var(--muted);font-size:12.5px;margin-bottom:14px}
+  .controls{display:flex;gap:14px;flex-wrap:wrap;align-items:flex-end;
+    background:#fff;border:1px solid var(--line);border-radius:10px;padding:12px 16px;
+    margin-bottom:16px;box-shadow:var(--shadow)}
+  .field{display:flex;flex-direction:column;gap:3px}
+  .field label{font-size:11.5px;color:var(--muted);font-weight:600}
+  .field select,.field input{padding:7px 9px;border:1px solid var(--line);border-radius:7px;
+    font-size:14px;background:#fff;color:var(--ink)}
+  .seg{display:inline-flex;border:1px solid var(--line);border-radius:7px;overflow:hidden}
+  .seg button{border:none;background:#fff;padding:7px 12px;cursor:pointer;font-size:13px;color:var(--muted)}
+  .seg button.on{background:var(--accent);color:#fff}
+  .hint{font-size:12px;color:var(--muted)}
+  .drop{border:2px dashed #b6c2d9;border-radius:12px;padding:30px;text-align:center;
+    color:var(--muted);background:#fbfcfe;cursor:pointer;transition:.15s}
+  .drop.hot{border-color:var(--accent);background:#eef4ff;color:var(--accent)}
+  .drop strong{color:var(--ink)}
+  table{border-collapse:collapse;width:100%;font-size:13px}
+  th,td{border:1px solid var(--line);padding:6px 9px;text-align:right}
+  th{background:#f8fafc;font-weight:600}
+  th:first-child,td:first-child{text-align:left}
+  tr.me td{background:#fff3ee;font-weight:700}
+  tr.sim td{background:#eef7ff}
+  .badge{display:inline-block;background:var(--chip);color:var(--accent);border-radius:20px;
+    padding:2px 10px;font-size:12px;font-weight:600;margin:2px 4px 2px 0}
+  .kpi{display:flex;gap:12px;flex-wrap:wrap;margin:6px 0 14px}
+  .kpi .box{flex:1;min-width:150px;background:#f8fafc;border:1px solid var(--line);
+    border-radius:9px;padding:12px 14px}
+  .kpi .box .l{font-size:11.5px;color:var(--muted)}
+  .kpi .box .v{font-size:22px;font-weight:700;margin-top:2px}
+  .kpi .box .u{font-size:12px;color:var(--muted);font-weight:400}
+  canvas{width:100%;display:block}
+  .chartbox{position:relative;width:100%;height:380px}
+  .note{background:#fffbeb;border:1px solid #fde68a;color:#92400e;border-radius:9px;
+    padding:10px 14px;font-size:12.5px;margin:8px 0}
+  .btn{background:var(--accent);color:#fff;border:none;border-radius:7px;padding:8px 14px;
+    font-size:13px;cursor:pointer;font-weight:600}
+  .btn.ghost{background:#fff;color:var(--accent);border:1px solid var(--accent)}
+  .btn.danger{background:#fff;color:#b91c1c;border:1px solid #fca5a5}
+  .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+  .tag{font-size:11px;color:#fff;border-radius:5px;padding:1px 7px;font-weight:700}
+  .hidden{display:none!important}
+  .foot{color:var(--muted);font-size:11.5px;text-align:center;padding:20px}
+  details{margin-top:8px}
+  summary{cursor:pointer;color:var(--accent);font-size:13px}
+  .scroll{overflow-x:auto}
+  .btn.sm{padding:4px 9px;font-size:12px;font-weight:600}
+  .popover{background:#fff;border:1px solid var(--line);border-radius:10px;padding:12px 14px;
+    box-shadow:var(--shadow);margin-bottom:16px}
+  .popover .ttl{font-weight:700;font-size:13px;margin-bottom:8px}
+  .presetrow{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+  .yeargrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(78px,1fr));gap:5px 12px;
+    margin-top:12px;max-height:190px;overflow:auto;border-top:1px solid var(--line);padding-top:12px}
+  .yeargrid label{display:flex;align-items:center;gap:5px;font-size:13px;font-weight:400;
+    color:var(--ink);cursor:pointer}
+  .yeargrid label.cur{color:var(--accent2);font-weight:700}
+  .ddwrap{display:flex;gap:6px;align-items:center}
+  .ddwrap span{color:var(--muted);font-size:13px}
+  table.heat{border-collapse:collapse;width:100%}
+  table.heat th,table.heat td{text-align:center;padding:5px 6px;font-size:12px;border:1px solid #eceff3;min-width:44px}
+  table.heat thead th,table.heat tbody th{background:#f8fafc}
+  table.heat tr>th:first-child{background:#f8fafc;font-weight:700;position:sticky;left:0;z-index:1}
+  table.heat td:last-child,table.heat th:last-child{font-weight:700;background:#f8fafc}
+  table.heat tr.normrow th,table.heat tr.normrow td{background:#eef2ff!important;color:#3730a3;font-weight:600}
+  .insight{background:#f0f7ff;border:1px solid #cfe0f7;border-radius:10px;padding:12px 16px;margin:4px 0 14px}
+  .insight .ttl{font-weight:700;font-size:13.5px;margin-bottom:6px;color:#1e3a8a}
+  .insight ul{margin:0;padding-left:4px;list-style:none}
+  .insight li{margin:4px 0;font-size:13px;line-height:1.65}
+  .insight li.warn{color:#9a3412;background:#fff7ed;border-radius:6px;padding:2px 6px}
+  .insight li.muted{color:var(--muted)}
+  .insight .foot2{font-size:11px;color:var(--muted);margin-top:8px}
+  /* ---- スマホ表示 ---- */
+  @media (max-width:640px){
+    body{font-size:13.5px}
+    header{padding:12px 14px} header h1{font-size:17px} header .sub{font-size:11px}
+    .wrap{padding:0 10px}
+    .tabs{flex-wrap:nowrap;overflow-x:auto;-webkit-overflow-scrolling:touch;padding:0 6px;gap:0;scrollbar-width:none}
+    .tabs::-webkit-scrollbar{display:none}
+    .tabs button{flex:0 0 auto;padding:11px 10px;font-size:13px;white-space:nowrap}
+    main{padding:12px 0 40px}
+    .panel{padding:12px;border-radius:8px}
+    .controls{padding:10px 12px;gap:10px}
+    .controls .field{flex:1 1 100%}
+    .controls .field select{width:100%}
+    .ddwrap select{flex:1}
+    .row .field{flex:1 1 45%}
+    .kpi{gap:8px}
+    .kpi .box{min-width:calc(50% - 4px);padding:9px 10px}
+    .kpi .box .v{font-size:18px}
+    .chartbox{height:320px}
+    .insight{padding:10px 12px}
+    .insight li{font-size:12.5px}
+    table{font-size:12px} th,td{padding:5px 6px}
+    table.heat th,table.heat td{min-width:38px;padding:4px 3px;font-size:11px}
+    .drop{padding:18px}
+    .seg button{padding:7px 9px}
+  }
+  .legendbar{display:inline-block;width:120px;height:12px;border-radius:3px;vertical-align:middle;margin:0 6px}
+</style>
+</head>
+<body>
+<header>
+  <div class="wrap">
+    <h1>🌱 気象データ分析ツール</h1>
+    <div class="sub">積算温度・積算降水量／年ごとの比較・類似年判定／この先の見通し（過去データからの推定）</div>
+  </div>
+</header>
+
+<nav class="tabs wrap" id="tabs">
+  <button data-tab="data" class="active">データ管理</button>
+  <button data-tab="temp">積算温度</button>
+  <button data-tab="rain">積算降水量</button>
+  <button data-tab="similar">年比較・類似年</button>
+  <button data-tab="outlook">この先の見通し</button>
+  <button data-tab="monthly">月別サマリー</button>
+</nav>
+
+<main class="wrap">
+
+  <!-- 共通コントロール -->
+  <div class="controls" id="globalControls">
+    <div class="field">
+      <label>地点</label>
+      <select id="stationSel"></select>
+    </div>
+    <div class="field" id="startField">
+      <label>開始日（この月日から積算・比較）</label>
+      <div class="ddwrap">
+        <select id="startMonth"></select><span>月</span>
+        <select id="startDay"></select><span>日</span>
+      </div>
+    </div>
+    <div class="field" id="presetField">
+      <label>よく使う日（月はそのまま）</label>
+      <div class="presetrow" id="startPresets">
+        <button class="btn ghost sm" data-day="01">1日</button>
+        <button class="btn ghost sm" data-day="10">10日</button>
+        <button class="btn ghost sm" data-day="20">20日</button>
+        <button class="btn ghost sm" data-today>今日</button>
+      </div>
+    </div>
+    <div class="field" id="yearField">
+      <label>表示する年</label>
+      <button class="btn ghost" id="yearBtn">表示する年 ▼</button>
+    </div>
+    <div class="field">
+      <label>&nbsp;</label>
+      <span class="hint" id="dataRange">データ未読込</span>
+    </div>
+  </div>
+
+  <!-- 表示年フィルタ（積算タブ用） -->
+  <div class="popover hidden" id="yearPanel">
+    <div class="ttl">グラフに表示する年を選ぶ</div>
+    <div class="presetrow">
+      <button class="btn sm" data-preset="recent5">直近5年</button>
+      <button class="btn sm" data-preset="recent10">直近10年</button>
+      <button class="btn sm" data-preset="analog">今年＋類似年</button>
+      <button class="btn sm" data-preset="all">全て</button>
+      <button class="btn ghost sm" data-preset="none">全解除</button>
+      <span class="hint" id="yearCount" style="margin-left:6px"></span>
+    </div>
+    <div class="yeargrid" id="yearChecks"></div>
+  </div>
+
+  <!-- データ管理 -->
+  <section class="panel tabpane" id="pane-data">
+    <h2>データ管理</h2>
+    <div class="desc">気象庁のデータは「気象データ自動取得」フォルダの仕組みで毎朝自動で取得され、このHTMLを開くと自動で読み込まれます（下の緑の枠に状態を表示）。手動で取ったCSV（Shift-JIS）も、下の枠に入れれば追加できます（同じ日付は新しい方で上書き）。</div>
+    <div id="autoStatus" style="margin-bottom:14px"></div>
+    <div class="drop" id="drop">
+      <div style="font-size:34px">📥</div>
+      <div><strong>ここにCSVファイルをドラッグ&ドロップ</strong>（複数まとめてOK）</div>
+      <div class="hint">またはクリックしてファイルを選択</div>
+      <input type="file" id="fileInput" accept=".csv" multiple class="hidden">
+    </div>
+    <div id="loadMsg" style="margin-top:12px"></div>
+    <div id="dataSummary" style="margin-top:14px"></div>
+    <div class="row" style="margin-top:14px">
+      <button class="btn" id="exportBtn">💾 データを書き出す（バックアップ保存）</button>
+      <button class="btn ghost" id="importBtn">📂 バックアップを読み込む</button>
+      <input type="file" id="importInput" accept=".json" class="hidden">
+      <button class="btn danger" id="clearBtn">保存データを全消去</button>
+    </div>
+    <div class="hint" style="margin-top:8px">💡 HTMLを別のフォルダやPCに移すと、ブラウザ内の保存データは引き継がれません。大事なデータは「書き出す」で1つのファイルに保存し、移動先で「読み込む」と復元できます。</div>
+    <div class="note">🔒 すべての処理はこのブラウザ内だけで行われます。読み込んだデータや分析結果が<strong>外部（サーバー・クラウド・API）へ送信されることはありません</strong>。インターネット接続も不要です。</div>
+    <details>
+      <summary>気象庁データの取り方（メモ）</summary>
+      <div class="hint" style="margin-top:6px">気象庁「過去の気象データ・ダウンロード」で、地点・項目（日別の平均気温／降水量の合計）・期間を選び、CSVでダウンロードしてください。同じ地点・項目の設定で期間を変えて取れば、このツールにそのまま追加できます。</div>
+    </details>
+  </section>
+
+  <!-- 積算温度 -->
+  <section class="panel tabpane hidden" id="pane-temp">
+    <h2>積算温度</h2>
+    <div class="desc">基準開始日からの気温を積み上げ、各年を重ねて比較します。今年（最新シーズン）は赤の太線です。</div>
+    <div class="row" style="margin-bottom:12px">
+      <div class="field">
+        <label>計算方式</label>
+        <div class="seg" id="tempMode">
+          <button data-m="simple" class="on">単純積算</button>
+          <button data-m="effective">有効積算温度</button>
+        </div>
+      </div>
+      <div class="field" id="baseTempField">
+        <label>基準温度(℃)</label>
+        <input type="number" id="baseTemp" value="10" step="0.5" style="width:90px">
+      </div>
+      <div class="field">
+        <label>集計日数（開始日から）</label>
+        <input type="number" id="tempDays" value="365" step="1" min="1" style="width:100px">
+      </div>
+    </div>
+    <div class="kpi" id="tempKpi"></div>
+    <div id="tempInsight"></div>
+    <div class="chartbox"><canvas id="tempChart"></canvas></div>
+    <div class="scroll" style="margin-top:14px"><div id="tempTable"></div></div>
+  </section>
+
+  <!-- 積算降水量 -->
+  <section class="panel tabpane hidden" id="pane-rain">
+    <h2>積算降水量</h2>
+    <div class="desc">基準開始日からの降水量を積み上げ、各年を重ねて比較します。</div>
+    <div class="row" style="margin-bottom:12px">
+      <div class="field">
+        <label>集計日数（開始日から）</label>
+        <input type="number" id="rainDays" value="365" step="1" min="1" style="width:100px">
+      </div>
+    </div>
+    <div class="kpi" id="rainKpi"></div>
+    <div id="rainInsight"></div>
+    <div class="chartbox"><canvas id="rainChart"></canvas></div>
+    <div class="scroll" style="margin-top:14px"><div id="rainTable"></div></div>
+  </section>
+
+  <!-- 類似年 -->
+  <section class="panel tabpane hidden" id="pane-similar">
+    <h2>年比較・類似年判定</h2>
+    <div class="desc">基準開始日から現在までの<strong>気温の推移を主体</strong>に（降水量も少し加味）、過去の各年と比べて「今年に最も近い年」を並べます。</div>
+    <div class="row" style="margin-bottom:12px">
+      <div class="field">
+        <label>気温の重み</label>
+        <input type="range" id="wTemp" min="0.5" max="1" step="0.05" value="0.85">
+        <span class="hint" id="wTempLbl">気温85% / 降水量15%</span>
+      </div>
+    </div>
+    <div id="simSummary"></div>
+    <div id="simInsight"></div>
+    <div class="chartbox" style="margin-top:10px"><canvas id="simChart"></canvas></div>
+    <div class="scroll" style="margin-top:14px"><div id="simTable"></div></div>
+  </section>
+
+  <!-- この先の見通し -->
+  <section class="panel tabpane hidden" id="pane-outlook">
+    <h2>この先の見通し（過去の類似年からの推定）</h2>
+    <div class="note">⚠️ これは気象予報ではありません。<strong>今年に似ていた過去の年々が、その先どうなったか</strong>を集計した<strong>推定・参考値</strong>です。実際の営農判断は現地の状況と合わせて最終的にご判断ください。</div>
+    <div class="row" style="margin:10px 0">
+      <div class="field">
+        <label>参考にする類似年の数</label>
+        <input type="number" id="nAnalog" value="3" min="1" max="10" style="width:80px">
+      </div>
+      <div class="field">
+        <label>予測する日数</label>
+        <div class="seg" id="aheadSeg">
+          <button data-d="30" class="on">30日先</button>
+          <button data-d="60">60日先</button>
+          <button data-d="90">90日先</button>
+        </div>
+      </div>
+    </div>
+    <div class="kpi" id="outlookKpi"></div>
+    <div id="outlookInsight"></div>
+    <div class="chartbox"><canvas id="outlookChart"></canvas></div>
+    <div id="outlookNote" class="hint" style="margin-top:10px"></div>
+  </section>
+
+  <!-- 月別サマリー -->
+  <section class="panel tabpane hidden" id="pane-monthly">
+    <h2>月別サマリー・ヒートマップ</h2>
+    <div class="desc">年×月ごとの平均気温・降水量を一覧＋色の濃淡で表示します。どの月が暑い/寒い/雨が多いかをまとめて把握できます（色が濃いほど高温・多雨）。</div>
+    <div class="row" style="margin-bottom:12px">
+      <div class="field">
+        <label>表示項目</label>
+        <div class="seg" id="monthlyMode">
+          <button data-m="temp" class="on">平均気温</button>
+          <button data-m="tmax">最高気温</button>
+          <button data-m="tmin">最低気温</button>
+          <button data-m="rain">降水量</button>
+        </div>
+      </div>
+      <div class="field">
+        <label>&nbsp;</label>
+        <span class="hint" id="monthlyLegend"></span>
+      </div>
+    </div>
+    <div id="monthlyInsight"></div>
+    <div id="monthlyWrap"></div>
+  </section>
+
+</main>
+
+<div class="foot">気象データ分析ツール（単一HTML・完全オフライン動作） / データはお使いのブラウザ内にのみ保存されます</div>
+
+<script src="weather_data.js"></script>
+<script>
+"use strict";
+/* ============================================================
+   気象データ分析ツール
+   - 気象庁CSV(Shift-JIS)をブラウザ内で解析・保存(localStorage)
+   - 積算温度/降水量, 類似年判定, 見通し, 平年値比較
+   - 外部依存なし / 外部送信なし
+   ============================================================ */
+
+const LS_KEY = "weatherData:v1";
+
+/* ---------- 日付ユーティリティ（UTC固定でタイムゾーン誤差回避） ---------- */
+function parseYMD(s){ const [y,m,d]=s.split("-").map(Number); return new Date(Date.UTC(y,m-1,d)); }
+function ymd(dt){ return dt.toISOString().slice(0,10); }
+function addDays(s,n){ const d=parseYMD(s); d.setUTCDate(d.getUTCDate()+n); return ymd(d); }
+function daysBetween(a,b){ return Math.round((parseYMD(b)-parseYMD(a))/86400000); }
+function todayStr(){ const d=new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`; }
+function mmdd(s){ return s.slice(5); }
+function fmt(n,dec=1){ return (n==null||isNaN(n))?"–":Number(n).toLocaleString("ja-JP",{minimumFractionDigits:dec,maximumFractionDigits:dec}); }
+
+/* ---------- 保存層（ここだけ触ればIndexedDB等へ差し替え可能） ---------- */
+function emptyDB(){ return {stations:[], records:{}, normals:{}, updatedAt:null, sources:[]}; }
+// 保存時は容量節約のため日別値を配列 [平均気温, 降水量, 最高気温, 最低気温] に圧縮（fmt:2）
+const REC_KEYS=["temp","precip","tmax","tmin"];
+function loadDB(){
+  try{ const raw=localStorage.getItem(LS_KEY); if(!raw) return emptyDB();
+    const db=JSON.parse(raw); db.records=db.records||{}; db.normals=db.normals||{}; db.stations=db.stations||[]; db.sources=db.sources||[];
+    if(db.fmt===2){
+      for(const s in db.records){ const src=db.records[s], out={};
+        for(const d in src){ const a=src[d], r={}; REC_KEYS.forEach((k,i)=>{ r[k]=a[i]==null?null:a[i]; }); out[d]=r; }
+        db.records[s]=out; }
+      delete db.fmt;
+    }
+    return db;
+  }catch(e){ console.warn("load失敗",e); return emptyDB(); }
+}
+function saveDB(db,quiet){
+  try{
+    const c={...db, fmt:2, records:{}};
+    for(const s in db.records){ const src=db.records[s], out={};
+      for(const d in src){ const r=src[d]; const a=REC_KEYS.map(k=>r[k]==null?null:r[k]); while(a.length&&a[a.length-1]==null) a.pop(); out[d]=a; }
+      c.records[s]=out; }
+    localStorage.setItem(LS_KEY, JSON.stringify(c)); return true;
+  }catch(e){ if(!quiet) alert("保存に失敗しました（データ量が大きすぎる可能性）。\n"+e.message); return false; }
+}
+
+let DB = loadDB();
+
+/* ---------- CSVパーサ（気象庁フォーマット・堅牢） ---------- */
+function toNum(v){ if(v==null) return null; const t=String(v).trim(); if(t==="") return null; const n=parseFloat(t); return isNaN(n)?null:n; }
+
+function parseJmaCsv(text){
+  const lines = text.split(/\r?\n/);
+  const rows = lines.map(l=>l.split(","));
+  // 「年月日」で始まる行 = 項目ヘッダ行H
+  let H=-1;
+  for(let i=0;i<rows.length;i++){ if((rows[i][0]||"").trim()==="年月日"){ H=i; break; } }
+  if(H<0) throw new Error("気象庁形式のヘッダ（年月日）が見つかりません");
+  const stationRow = rows[H-1]||[];
+  const elemRow    = rows[H]||[];
+  const normalRow  = rows[H+1]||[];
+  const qualRow    = rows[H+2]||[];
+  const dataRows   = rows.slice(H+3);
+
+  // 列を動的に検出：品質情報/均質番号の列(qualRowが非空)は除外
+  // 値列 = normalRow空 & qualRow空 / 平年値列 = normalRowに"平年値" & qualRow空
+  const cols=[]; // {station, kind:'temp'|'precip', normal:bool, idx}
+  for(let c=1;c<elemRow.length;c++){
+    const st=(stationRow[c]||"").trim();
+    const el=(elemRow[c]||"").trim();
+    if(!st||!el) continue;
+    const q=(qualRow[c]||"").trim();
+    if(q!=="") continue; // 品質情報 or 均質番号の列
+    const isNormal = (normalRow[c]||"").indexOf("平年値")>=0;
+    let kind=null;
+    if(el.indexOf("平均気温")>=0) kind="temp";
+    else if(el.indexOf("降水量")>=0) kind="precip";
+    else if(el.indexOf("最高気温")>=0) kind="tmax";
+    else if(el.indexOf("最低気温")>=0) kind="tmin";
+    if(!kind) continue;
+    cols.push({station:st, kind, normal:isNormal, idx:c});
+  }
+  if(!cols.length) throw new Error("平均気温／降水量の列が見つかりません");
+
+  const stations=[...new Set(cols.map(c=>c.station))];
+  const records={}; const normals={};
+  stations.forEach(s=>{records[s]={}; normals[s]={};});
+
+  for(const r of dataRows){
+    const dstr=(r[0]||"").trim();
+    if(!dstr) continue;
+    const m=dstr.match(/^(\d{4})\/(\d{1,2})\/(\d{1,2})/);
+    if(!m) continue;
+    const date=`${m[1]}-${String(+m[2]).padStart(2,"0")}-${String(+m[3]).padStart(2,"0")}`;
+    const md=mmdd(date);
+    for(const col of cols){
+      const v=toNum(r[col.idx]);
+      if(col.normal){
+        // 平年値：MM-DD単位で一度だけ保持
+        if(!normals[col.station][md]) normals[col.station][md]={temp:null,precip:null};
+        if(v!=null) normals[col.station][md][col.kind]=v;
+      }else{
+        if(!records[col.station][date]) records[col.station][date]={temp:null,precip:null};
+        if(v!=null) records[col.station][date][col.kind]=v;
+      }
+    }
+  }
+  return {stations, records, normals};
+}
+
+/* ---------- マージ（日付×地点、後勝ち） ---------- */
+function mergeParsed(db, parsed, sourceName){
+  for(const s of parsed.stations){ if(!db.stations.includes(s)) db.stations.push(s); if(!db.records[s]) db.records[s]={}; if(!db.normals[s]) db.normals[s]={}; }
+  let added=0, updated=0;
+  for(const s of parsed.stations){
+    const src=parsed.records[s];
+    for(const date in src){
+      const rec=src[date];
+      if(db.records[s][date]) updated++; else added++;
+      const cur=db.records[s][date]||{temp:null,precip:null};
+      const nx={...cur}; for(const k in rec){ if(rec[k]!=null) nx[k]=rec[k]; } db.records[s][date]=nx;
+    }
+    const nsrc=parsed.normals[s];
+    for(const md in nsrc){
+      const cur=db.normals[s][md]||{temp:null,precip:null};
+      const nx={...cur}; for(const k in nsrc[md]){ if(nsrc[md][k]!=null) nx[k]=nsrc[md][k]; } db.normals[s][md]=nx;
+    }
+  }
+  db.updatedAt=new Date().toISOString();
+  if(sourceName && !db.sources.includes(sourceName)) db.sources.push(sourceName);
+  return {added, updated};
+}
+
+/* ---------- 集計ヘルパ ---------- */
+function stationDates(station){ return Object.keys(DB.records[station]||{}).sort(); }
+function dataMinMax(station){ const d=stationDates(station); return d.length?{min:d[0],max:d[d.length-1]}:null; }
+
+// 開始MM-DDから、指定年のシーズンをday-offset順に取り出す（実日付で前進、翌年へまたぎ可）
+function seasonArray(station, year, startMMDD, horizon){
+  const start=`${year}-${startMMDD}`;
+  const out=[]; // [{date, temp, precip}]
+  const recs=DB.records[station]||{};
+  for(let n=0;n<horizon;n++){
+    const date=addDays(start,n);
+    const r=recs[date];
+    out.push(r? {date, temp:r.temp??null, precip:r.precip??null, tmax:r.tmax??null, tmin:r.tmin??null} : {date, temp:null, precip:null, tmax:null, tmin:null});
+  }
+  return out;
+}
+
+// 「今年（最新シーズン）」の年を決定
+function currentSeasonYear(startMMDD){
+  const t=todayStr();
+  let y=+t.slice(0,4);
+  if(`${y}-${startMMDD}` > t) y--; // 開始日がまだ来ていなければ前シーズン
+  return y;
+}
+
+// そのシーズンが実際にデータを持つ最終offset（連続でなくても最後にデータがある位置）
+function lastFilledOffset(arr){ let last=-1; for(let i=0;i<arr.length;i++){ if(arr[i].temp!=null||arr[i].precip!=null) last=i; } return last; }
+
+// 積算値の系列（offset毎の累積）
+function cumulative(arr, valueFn, uptoOffset){
+  const pts=[]; let acc=0; const lim=(uptoOffset==null?arr.length:uptoOffset+1);
+  for(let i=0;i<lim;i++){ const v=valueFn(arr[i]); if(v!=null){ acc+=v; } pts.push([i,acc]); }
+  return pts;
+}
+
+function tempValueFn(mode, base){
+  if(mode==="effective") return r=> r.temp==null?null:Math.max(0, r.temp-base);
+  return r=> r.temp==null?null:r.temp;
+}
+const precipValueFn = r=> r.precip==null?null:r.precip;
+
+// 平年値のシーズン配列（MM-DD単位の平年値をoffset順に並べる。base年で1日歩進）
+function normalSeasonArray(station, baseYear, startMMDD, horizon){
+  const normals=DB.normals[station]||{};
+  const start=`${baseYear}-${startMMDD}`;
+  const out=[];
+  for(let n=0;n<horizon;n++){
+    const md=mmdd(addDays(start,n));
+    const nr=normals[md];
+    out.push({temp: nr?nr.temp:null, precip: nr?nr.precip:null});
+  }
+  return out;
+}
+// 平年値の積算系列（データがあればpts、無ければnull）
+function normalCumulative(station, baseYear, startMMDD, horizon, valueFn){
+  if(!Object.keys(DB.normals[station]||{}).length) return null;
+  const nArr=normalSeasonArray(station, baseYear, startMMDD, horizon);
+  const last=lastFilledOffset(nArr);
+  if(last<0) return null;
+  return cumulative(nArr, valueFn, last);
+}
+const NORMAL_COLOR="#111827"; // 平年値ライン（黒・破線）
+
+// 全データに存在する年の一覧（あるstationで、そのシーズン開始日を含む年）
+function seasonYears(station, startMMDD){
+  const dates=stationDates(station); if(!dates.length) return [];
+  const y0=+dates[0].slice(0,4), y1=+dates[dates.length-1].slice(0,4);
+  const ys=[]; for(let y=y0;y<=y1;y++){ ys.push(y); } return ys;
+}
+
+/* ============================================================
+   チャート描画（Canvas・自前・軽量）
+   cfg = { series:[{name,color,pts:[[x,y]],width,dash}], band:{color,upper,lower},
+           xLabel,yLabel, xFmt(x), yFmt(y), highlightName }
+   ============================================================ */
+function niceStep(range, target){
+  const raw=range/target; const mag=Math.pow(10,Math.floor(Math.log10(raw)));
+  const n=raw/mag; let step; if(n<1.5)step=1; else if(n<3)step=2; else if(n<7)step=5; else step=10;
+  return step*mag;
+}
+function drawChart(canvas, cfg){
+  canvas._cfg=cfg;
+  const dpr=window.devicePixelRatio||1;
+  const box=canvas.parentElement;
+  const W=box.clientWidth, Hh=box.clientHeight;
+  canvas.width=W*dpr; canvas.height=Hh*dpr;
+  canvas.style.width=W+"px"; canvas.style.height=Hh+"px";
+  const ctx=canvas.getContext("2d"); ctx.setTransform(dpr,0,0,dpr,0,0);
+  ctx.clearRect(0,0,W,Hh);
+
+  const all=cfg.series.filter(s=>s.pts&&s.pts.length);
+  const padL=54, padR=16, padB=42;
+  // 凡例の行数に合わせて上余白を決める（スマホ幅で凡例が折り返してもグラフに重ならないように）
+  let padT=14;
+  if(cfg.legend!==false){ ctx.font="12px sans-serif"; let lx=padL, rows=1;
+    (cfg.legendItems||all.map(s=>({name:s.name}))).forEach(s=>{ if(!s.name) return; const w=ctx.measureText(s.name).width+22; if(lx+w>W-padR){ lx=padL; rows++; } lx+=w; });
+    padT=14+(rows-1)*16+26; }
+  const plotW=W-padL-padR, plotH=Hh-padT-padB;
+
+  let xs=[],ys=[];
+  all.forEach(s=>s.pts.forEach(p=>{xs.push(p[0]);ys.push(p[1]);}));
+  if(cfg.band){ cfg.band.upper.forEach(p=>{xs.push(p[0]);ys.push(p[1]);}); cfg.band.lower.forEach(p=>{xs.push(p[0]);ys.push(p[1]);}); }
+  if(!xs.length){ ctx.fillStyle="#9aa4b2"; ctx.font="14px sans-serif"; ctx.fillText("データがありません",padL,padT+plotH/2); return; }
+  let xmin=Math.min(...xs),xmax=Math.max(...xs),ymin=Math.min(...ys,0),ymax=Math.max(...ys);
+  if(xmin===xmax)xmax=xmin+1; if(ymin===ymax)ymax=ymin+1;
+  const yr=ymax-ymin; ymax+=yr*0.05;
+  const X=x=>padL+(x-xmin)/(xmax-xmin)*plotW;
+  const Y=y=>padT+plotH-(y-ymin)/(ymax-ymin)*plotH;
+  canvas._map={X,Y,xmin,xmax,ymin,ymax,padL,padR,padT,padB,plotW,plotH};
+
+  // grid + y軸
+  ctx.strokeStyle="#eef1f5"; ctx.fillStyle="#8a94a4"; ctx.font="11px sans-serif"; ctx.lineWidth=1;
+  const yStep=niceStep(ymax-ymin,5);
+  for(let v=Math.ceil(ymin/yStep)*yStep; v<=ymax; v+=yStep){
+    const yy=Y(v); ctx.beginPath(); ctx.moveTo(padL,yy); ctx.lineTo(W-padR,yy); ctx.stroke();
+    ctx.textAlign="right"; ctx.textBaseline="middle"; ctx.fillText(cfg.yFmt?cfg.yFmt(v):fmt(v,0), padL-6, yy);
+  }
+  // x軸
+  const xStep=niceStep(xmax-xmin,Math.max(3,Math.min(7,Math.floor(plotW/80)))); // 画面幅に応じて目盛り数を調整
+  ctx.textAlign="center"; ctx.textBaseline="top";
+  for(let v=Math.ceil(xmin/xStep)*xStep; v<=xmax; v+=xStep){
+    const xx=X(v); ctx.strokeStyle="#f4f6f9"; ctx.beginPath(); ctx.moveTo(xx,padT); ctx.lineTo(xx,padT+plotH); ctx.stroke();
+    ctx.fillStyle="#8a94a4"; ctx.fillText(cfg.xFmt?cfg.xFmt(v):String(Math.round(v)), xx, padT+plotH+6);
+  }
+  // 軸ラベル
+  ctx.fillStyle="#6b7280"; ctx.font="11px sans-serif";
+  if(cfg.xLabel){ ctx.textAlign="right"; ctx.fillText(cfg.xLabel, W-padR, padT+plotH+24); }
+  if(cfg.yLabel){ if(W<500){ ctx.textAlign="left"; ctx.textBaseline="top"; ctx.fillText(cfg.yLabel,padL+4,padT+2); } /* スマホ幅はグラフ内左上に横書き */
+    else { ctx.save(); ctx.translate(13,padT); ctx.rotate(-Math.PI/2); ctx.textAlign="right"; ctx.fillText(cfg.yLabel,0,0); ctx.restore(); } }
+
+  // band
+  if(cfg.band){
+    ctx.beginPath();
+    cfg.band.upper.forEach((p,i)=>{ const px=X(p[0]),py=Y(p[1]); i?ctx.lineTo(px,py):ctx.moveTo(px,py); });
+    for(let i=cfg.band.lower.length-1;i>=0;i--){ const p=cfg.band.lower[i]; ctx.lineTo(X(p[0]),Y(p[1])); }
+    ctx.closePath(); ctx.fillStyle=cfg.band.color||"rgba(37,99,235,.12)"; ctx.fill();
+  }
+  // series
+  ctx.lineJoin="round";
+  all.forEach(s=>{
+    ctx.strokeStyle=s.color; ctx.lineWidth=s.width||1.5;
+    if(s.dash) ctx.setLineDash([6,4]); else ctx.setLineDash([]);
+    ctx.beginPath();
+    let started=false;
+    s.pts.forEach(p=>{ const px=X(p[0]),py=Y(p[1]); if(!started){ctx.moveTo(px,py);started=true;} else ctx.lineTo(px,py); });
+    ctx.stroke();
+  });
+  ctx.setLineDash([]);
+
+  // legend
+  if(cfg.legend!==false){
+    let lx=padL, ly=14; ctx.font="12px sans-serif"; ctx.textBaseline="middle";
+    const leg=cfg.legendItems||all.map(s=>({name:s.name,color:s.color}));
+    leg.forEach(s=>{ if(!s.name) return; const w=ctx.measureText(s.name).width+22;
+      if(lx+w>W-padR){lx=padL; ly+=16;}
+      ctx.fillStyle=s.color; ctx.fillRect(lx,ly-4,12,8);
+      ctx.fillStyle="#4b5563"; ctx.textAlign="left"; ctx.fillText(s.name,lx+16,ly); lx+=w; });
+  }
+}
+
+// ホバー用ツールチップ
+function attachHover(canvas, labelFn){
+  canvas.onmousemove=e=>{
+    const cfg=canvas._cfg, mp=canvas._map; if(!cfg||!mp) return;
+    const rect=canvas.getBoundingClientRect(); const mx=e.clientX-rect.left;
+    const xVal=mp.xmin+(mx-mp.padL)/mp.plotW*(mp.xmax-mp.xmin);
+    drawChart(canvas,cfg);
+    const ctx=canvas.getContext("2d");
+    const xr=Math.round(xVal);
+    const xx=mp.X(xr);
+    if(xx<mp.padL||xx>mp.padL+mp.plotW) return;
+    ctx.strokeStyle="#cbd5e1"; ctx.setLineDash([3,3]); ctx.beginPath(); ctx.moveTo(xx,mp.padT); ctx.lineTo(xx,mp.padT+mp.plotH); ctx.stroke(); ctx.setLineDash([]);
+    const items=[];
+    cfg.series.forEach(s=>{ const p=s.pts.find(q=>q[0]===xr); if(p){ items.push({name:s.name,color:s.color,y:p[1]}); ctx.fillStyle=s.color; ctx.beginPath(); ctx.arc(xx,mp.Y(p[1]),3,0,7); ctx.fill(); } });
+    if(!items.length) return;
+    const lines=[ (labelFn?labelFn(xr):("x="+xr)) ].concat(items.map(it=>`${it.name}: ${fmt(it.y,1)}`));
+    ctx.font="12px sans-serif"; const tw=Math.max(...lines.map(l=>ctx.measureText(l).width))+16;
+    const th=lines.length*16+8; let tx=xx+10; if(tx+tw>mp.padL+mp.plotW) tx=xx-tw-10; let ty=mp.padT+8;
+    ctx.fillStyle="rgba(17,24,39,.92)"; ctx.fillRect(tx,ty,tw,th);
+    ctx.textAlign="left"; ctx.textBaseline="top";
+    lines.forEach((l,i)=>{ ctx.fillStyle= i===0?"#fbbf24":"#fff"; ctx.fillText(l,tx+8,ty+6+i*16); });
+  };
+  canvas.onmouseleave=()=>{ if(canvas._cfg) drawChart(canvas,canvas._cfg); };
+  // スマホ：指で触れた位置の値を表示
+  canvas.ontouchstart=canvas.ontouchmove=e=>{ const t=e.touches&&e.touches[0]; if(t) canvas.onmousemove({clientX:t.clientX,clientY:t.clientY}); };
+}
+
+/* ---------- 年カラーパレット ---------- */
+function yearColor(i,total){ const h=210-(i/Math.max(1,total-1))*150; return `hsl(${h},45%,72%)`; }
+const CUR_COLOR="#e4572e";
+const SIM_COLORS=["#2563eb","#059669","#7c3aed","#d97706","#0891b2"];
+
+/* ============================================================
+   状態 & UI
+   ============================================================ */
+const UI={ station:null, startMM:"01", startDay:"01", tab:"data",
+  tempMode:"simple", ahead:30, selectedYears:null, monthlyMode:"temp" };
+// UI.startDate は月日から算出（年は表示用の便宜で閏年2024固定）
+Object.defineProperty(UI,"startDate",{ get(){ return `2024-${UI.startMM}-${UI.startDay}`; } });
+
+const DAYS_IN_MONTH=[31,29,31,30,31,30,31,31,30,31,30,31]; // 2024基準（閏）
+
+function fillDaySelect(){
+  const md=DAYS_IN_MONTH[(+UI.startMM)-1];
+  if(+UI.startDay>md) UI.startDay=String(md).padStart(2,"0");
+  const day=document.getElementById("startDay");
+  let opt=""; for(let d=1;d<=md;d++){ const v=String(d).padStart(2,"0"); opt+=`<option value="${v}">${d}</option>`; }
+  day.innerHTML=opt; day.value=UI.startDay;
+}
+
+function initControls(){
+  const sel=document.getElementById("stationSel");
+  sel.innerHTML=DB.stations.map(s=>`<option>${s}</option>`).join("");
+  if(DB.stations.length){ if(!UI.station||!DB.stations.includes(UI.station)) UI.station=DB.stations[0]; sel.value=UI.station; }
+  // 月・日プルダウン
+  const mon=document.getElementById("startMonth");
+  if(!mon.options.length){ let o=""; for(let m=1;m<=12;m++){ const v=String(m).padStart(2,"0"); o+=`<option value="${v}">${m}</option>`; } mon.innerHTML=o; }
+  mon.value=UI.startMM;
+  fillDaySelect();
+  // データ範囲表示
+  const rng=document.getElementById("dataRange");
+  if(DB.stations.length){ const mm=dataMinMax(UI.station); rng.textContent=mm?`${UI.station}：${mm.min} 〜 ${mm.max}`:"（この地点のデータなし）"; }
+  else rng.textContent="データ未読込";
+  // 年フィルタUIの表示可否（積算タブのみ）
+  document.getElementById("yearField").style.display=(UI.tab==="temp"||UI.tab==="rain")?"flex":"none";
+  if(!(UI.tab==="temp"||UI.tab==="rain")) document.getElementById("yearPanel").classList.add("hidden");
+  updateYearBtn();
+  // 開始日UIの表示可否（開始日を使うタブのみ）
+  const usesStart=["temp","rain","similar","outlook"].includes(UI.tab);
+  document.getElementById("startField").style.display=usesStart?"flex":"none";
+  document.getElementById("presetField").style.display=usesStart?"flex":"none";
+}
+
+/* ---------- 表示年フィルタ ---------- */
+function availableYears(){ return UI.station? seasonYears(UI.station, mmdd(UI.startDate)) : []; }
+// 実際に描画対象とする年の集合
+function effectiveYears(allYears){
+  if(UI.selectedYears===null) return new Set(allYears.slice(-10)); // 既定：直近10年
+  return new Set([...UI.selectedYears].filter(y=>allYears.includes(y)));
+}
+function updateYearBtn(){
+  const all=availableYears(); if(!all.length){ document.getElementById("yearBtn").textContent="表示する年 ▼"; return; }
+  const eff=effectiveYears(all);
+  document.getElementById("yearBtn").textContent=`表示する年：${eff.size}／${all.length}年 ▼`;
+}
+function applyPreset(preset){
+  const all=availableYears(); if(!all.length) return;
+  const curYear=currentSeasonYear(mmdd(UI.startDate));
+  if(preset==="all") UI.selectedYears=new Set(all);
+  else if(preset==="recent5") UI.selectedYears=new Set(all.slice(-5));
+  else if(preset==="recent10") UI.selectedYears=new Set(all.slice(-10));
+  else if(preset==="none") UI.selectedYears=new Set();
+  else if(preset==="analog"){
+    const sim=computeSimilarity(UI.station, mmdd(UI.startDate), 0.85);
+    const s=new Set([curYear]); sim.results.slice(0,3).forEach(r=>s.add(r.y)); UI.selectedYears=s;
+  }
+  renderYearPanel(); updateYearBtn();
+  if(UI.tab==="temp") renderTemp(); if(UI.tab==="rain") renderRain();
+}
+function renderYearPanel(){
+  const all=availableYears(); const eff=effectiveYears(all);
+  const curYear=currentSeasonYear(mmdd(UI.startDate));
+  const grid=document.getElementById("yearChecks");
+  grid.innerHTML=all.slice().reverse().map(y=>`<label class="${y===curYear?'cur':''}"><input type="checkbox" data-year="${y}" ${eff.has(y)?'checked':''}>${y}${y===curYear?'(今年)':''}</label>`).join("");
+  grid.querySelectorAll("input[data-year]").forEach(cb=>cb.onchange=()=>{
+    if(UI.selectedYears===null) UI.selectedYears=new Set(effectiveYears(all)); // 既定から具体化
+    const y=+cb.dataset.year;
+    if(cb.checked) UI.selectedYears.add(y); else UI.selectedYears.delete(y);
+    updateYearBtn();
+    if(UI.tab==="temp") renderTemp(); if(UI.tab==="rain") renderRain();
+  });
+  document.getElementById("yearCount").textContent=`（${eff.size}年を選択中）`;
+}
+
+function renderAll(){
+  initControls();
+  renderData();
+  if(UI.tab==="temp") renderTemp();
+  if(UI.tab==="rain") renderRain();
+  if(UI.tab==="similar") renderSimilar();
+  if(UI.tab==="outlook") renderOutlook();
+  if(UI.tab==="monthly") renderMonthly();
+}
+
+/* ---------- データ管理タブ ---------- */
+function renderData(){
+  renderAutoStatus();
+  const el=document.getElementById("dataSummary");
+  if(!DB.stations.length){ el.innerHTML=`<div class="hint">まだデータがありません。上の枠にCSVを入れてください。</div>`; return; }
+  let rows=DB.stations.map(s=>{ const mm=dataMinMax(s); const cnt=Object.keys(DB.records[s]||{}).length;
+    return `<tr><td>${s}</td><td>${cnt.toLocaleString()}</td><td style="text-align:left">${mm?mm.min:"–"}</td><td style="text-align:left">${mm?mm.max:"–"}</td></tr>`; }).join("");
+  const upd=DB.updatedAt? new Date(DB.updatedAt).toLocaleString("ja-JP"):"–";
+  el.innerHTML=`
+    <div class="row" style="margin-bottom:8px">
+      ${DB.stations.map(s=>`<span class="badge">${s}</span>`).join("")}
+    </div>
+    <table><thead><tr><th>地点</th><th>日数</th><th>開始</th><th>終了</th></tr></thead><tbody>${rows}</tbody></table>
+    <div class="hint" style="margin-top:8px">最終更新：${upd} ／ 読込済ファイル：${DB.sources.length}件</div>`;
+}
+
+/* ============================================================
+   自動コメント（データから読み取れるポイント）
+   ============================================================ */
+function insightHTML(items, extra){
+  const list=(items||[]).filter(Boolean);
+  if(!list.length) return "";
+  return `<div class="insight"><div class="ttl">📝 データから読み取れるポイント</div>
+    <ul>${list.map(it=>`<li class="${it.lv||""}">${it.t}</li>`).join("")}</ul>
+    <div class="foot2">※ 取り込んだデータから自動で算出したコメントです（参考情報）。${extra||""}</div></div>`;
+}
+function sgn(v,dec=0){ return v==null||isNaN(v)?"–":(v>=0?"+":"")+fmt(v,dec); }
+function jpDate(s,withYear){ const [y,m,d]=s.split("-"); return `${withYear?(+y)+"年":""}${+m}月${+d}日`; }
+// 順位が「記録的」か（10年以上あるときだけ、上位/下位 約1割）: 1=上側, -1=下側, 0=該当なし
+function extremeSide(rank,n){ if(n<10) return 0; const k=Math.max(2,Math.round(n*0.1)); return rank<=k?1:(rank>n-k?-1:0); }
+function normalOf(station,date,kind){ const r=(DB.normals[station]||{})[mmdd(date)]; return r?r[kind]:null; }
+function meanOf(a){ const v=a.filter(x=>x!=null); return v.length? v.reduce((p,c)=>p+c,0)/v.length : null; }
+function sumOf(a){ const v=a.filter(x=>x!=null); return v.length? v.reduce((p,c)=>p+c,0) : null; }
+// 比較対象が今年の積算値に達した日から「何日早い/遅いペースか」を算出（正=今年が早い）
+function leadDays(val, refPts, off){ if(val==null||!refPts||val<=0) return null; for(const [k,acc] of refPts){ if(acc>=val) return k-off; } return null; }
+function paceText(lead, who){ if(lead==null) return ""; if(Math.abs(lead)<=1) return `、${who}とほぼ同じペース`; return lead>0?`、${who}より<b>約${lead}日早い</b>ペース`:`、${who}より<b>約${-lead}日遅い</b>ペース`; }
+function freshnessItem(endDate){ const gap=daysBetween(endDate,todayStr()); return gap>3?{t:`ℹ️ データは${jpDate(endDate,true)}までです（今日まで約${gap}日分が未取込）。最新のCSVを追加すると最新の状況で判断できます。`,lv:"muted"}:null; }
+function countDays(arr,upto,fn){ let n=0; for(let i=0;i<=upto&&i<arr.length;i++){ if(arr[i]&&fn(arr[i])) n++; } return n; }
+
+/* ============================================================
+   作物別の品質リスク（特記事項）
+   判定基準は一般的な目安です。品種・作型（露地/施設）・地域で異なるため、
+   現場の実態に合わせて下の CROP_RULES の数値（℃・日数・mm）を調整してください。
+   ============================================================ */
+const CROP_WINDOW=14; // 判定に使う日数（直近◯日）
+const CROP_NOTE="品質面の特記事項は一般的な目安です。品種・作型（露地/施設）・圃場で異なるため、現場の状況と合わせて判断してください。";
+function winStats(arr,i0,i1,station){
+  const seg=arr.slice(i0,i1+1).filter(Boolean);
+  const cnt=fn=>seg.filter(fn).length;
+  const t=seg.map(r=>r.temp).filter(v=>v!=null), p=seg.map(r=>r.precip).filter(v=>v!=null);
+  const tmins=seg.map(r=>r.tmin).filter(v=>v!=null), tmaxs=seg.map(r=>r.tmax).filter(v=>v!=null);
+  let run=0,dryRun=0; for(const r of seg){ if(r.precip==null){ run=0; continue; } if(r.precip<1){ run++; dryRun=Math.max(dryRun,run); } else run=0; }
+  // 「len日以上ほぼ雨なし（1mm未満）」の直後に「mm以上」の雨が降った日（期間より前の乾燥も含めて判定）
+  const dryHeavy=(len,mm)=>{ for(let j=i0;j<=i1;j++){ const r=arr[j]; if(!r||r.precip==null||r.precip<mm) continue;
+      let ok=j-len>=0; for(let k=j-len;k<j&&ok;k++){ const q=arr[k]; if(!q||q.precip==null||q.precip>=1) ok=false; } if(ok) return r; } return null; };
+  return { n:seg.length, cnt, tAvg:meanOf(t), pSum:p.length?sumOf(p):null,
+    nRain:sumOf(seg.map(r=>normalOf(station,r.date,"precip"))),
+    rainDays:cnt(r=>r.precip!=null&&r.precip>=1), maxRain:p.length?Math.max(...p):null, dryRun, dryHeavy,
+    tminMin:tmins.length?Math.min(...tmins):null, hasX:tmaxs.length+tmins.length>0,
+    month: seg.length? +seg[seg.length-1].date.slice(5,7) : 0 };
+}
+const ge=(k,v)=>r=>r[k]!=null&&r[k]>=v, le=(k,v)=>r=>r[k]!=null&&r[k]<=v;
+const CROP_RULES=[
+  // ---- レタス ----
+  {crop:"レタス",kind:"temp",label:"高温による結球不良・チップバーン・抽苔",test:S=>{ const a=S.cnt(ge("tmax",28)), b=S.cnt(ge("temp",25));
+    return (a>=5||b>=3)?`最高28℃以上が${a}日（日平均25℃以上${b}日）→ 結球不良・チップバーン（葉先の褐変）・抽苔（とう立ち）・苦味が出やすい条件です。`:null; }},
+  {crop:"レタス",kind:"temp",label:"凍霜害",test:S=>{ const a=S.cnt(le("tmin",0));
+    return a?`最低0℃以下が${a}日（最低${fmt(S.tminMin,1)}℃）→ 凍霜害（外葉・表皮の褐変や傷み）に注意。`:null; }},
+  {crop:"レタス",kind:"rain",label:"高温多湿による腐敗性病害",test:S=>(S.rainDays>=6&&S.tAvg!=null&&S.tAvg>=18)?
+    `雨の日が${S.rainDays}日・平均${fmt(S.tAvg,1)}℃の高温多湿 → 軟腐病・すそ枯病など腐敗性の病害が出やすい条件です。`:null},
+  {crop:"レタス",kind:"rain",label:"乾燥後の大雨による生理障害",test:S=>{ const r=S.dryHeavy(7,30);
+    return r?`${jpDate(r.date)}に、乾燥続きの後で${fmt(r.precip,0)}mmの雨 → 急な水分変化でチップバーンなどの生理障害が出やすくなります。`:null; }},
+  // ---- キャベツ・ブロッコリー ----
+  {crop:"キャベツ・ブロッコリー",kind:"temp",label:"高温による結球不良・花蕾異常",test:S=>{ const a=S.cnt(ge("tmax",30));
+    return a>=5?`最高30℃以上が${a}日 → キャベツの結球不良・軟球、ブロッコリーの花蕾の不揃い・さし葉（リーフィー）・キャッツアイが出やすい条件です。`:null; }},
+  {crop:"キャベツ・ブロッコリー",kind:"temp",label:"凍害",test:S=>{ const a=S.cnt(le("tmin",-3));
+    return a?`最低-3℃以下が${a}日（最低${fmt(S.tminMin,1)}℃）→ ブロッコリー花蕾の凍害（褐変・紫変）、キャベツ外葉の凍害に注意。`:null; }},
+  {crop:"キャベツ・ブロッコリー",kind:"temp",label:"低温による抽苔（春どり作型）",test:S=>{ const a=S.cnt(le("temp",10));
+    return (a>=10&&(S.month>=11||S.month<=3))?`日平均10℃以下が${a}日 → 越冬・春どり作型では、苗の大きさによって抽苔（とう立ち）の恐れがあります。`:null; }},
+  {crop:"キャベツ・ブロッコリー",kind:"rain",label:"大雨による裂球・花蕾の腐れ",test:S=>{ const r=S.dryHeavy(7,30), big=S.maxRain!=null&&S.maxRain>=50;
+    return (r||big)?`${r?`${jpDate(r.date)}に乾燥続きの後の${fmt(r.precip,0)}mmの雨`:`日降水${fmt(S.maxRain,0)}mmの大雨`} → キャベツの裂球、ブロッコリー花蕾の腐れに注意。`:null; }},
+  {crop:"キャベツ・ブロッコリー",kind:"rain",label:"高温多湿による軟腐病・黒腐病",test:S=>(S.rainDays>=6&&S.tAvg!=null&&S.tAvg>=20)?
+    `雨の日が${S.rainDays}日・平均${fmt(S.tAvg,1)}℃ → 軟腐病・黒腐病が出やすい条件です。`:null},
+  // ---- ホウレンソウ・葉物 ----
+  {crop:"ホウレンソウ・葉物",kind:"temp",label:"高温による発芽不良・生育停滞・抽苔",test:S=>{ const a=S.cnt(ge("tmax",30)), b=S.cnt(ge("temp",25));
+    return (a>=5||b>=5)?`最高30℃以上が${a}日（日平均25℃以上${b}日）→ 発芽不良・立枯病・萎凋病、葉の黄化・生育停滞が出やすい条件。ホウレンソウは抽苔もしやすくなります。`:null; }},
+  {crop:"ホウレンソウ・葉物",kind:"temp",label:"凍害",test:S=>{ const a=S.cnt(le("tmin",-5));
+    return a?`最低-5℃以下が${a}日（最低${fmt(S.tminMin,1)}℃）→ 葉の凍害・傷みに注意（寒締めで甘みが増す面もあります）。`:null; }},
+  {crop:"ホウレンソウ・葉物",kind:"rain",label:"多雨による泥はね・べと病・根腐れ",test:S=>{ const hi=S.pSum!=null&&S.pSum>=Math.max(80,(S.nRain||0)*1.5), big=S.maxRain!=null&&S.maxRain>=50;
+    return (hi||big)?`${CROP_WINDOW}日間の雨量${fmt(S.pSum,0)}mm${S.nRain?`（平年の約${fmt(S.pSum/S.nRain*100,0)}%）`:""}${big?`、日降水${fmt(S.maxRain,0)}mmの日あり`:""} → 泥はね・葉の汚れ、べと病・根腐れが出やすい条件です。`:null; }},
+  // ---- トマト・果菜類 ----
+  {crop:"トマト・果菜類",kind:"temp",label:"高温による着果不良・着色不良・日焼け果",test:S=>{ const a=S.cnt(ge("tmax",33));
+    return a>=5?`最高33℃以上が${a}日 → 着果不良（花落ち）、着色不良（30℃を超えると赤い色素ができにくい）、日焼け果が出やすい条件です（露地の目安）。`:null; }},
+  {crop:"トマト・果菜類",kind:"temp",label:"低温による着果不良・乱形果",test:S=>{ const a=S.cnt(le("tmin",8));
+    return (a>=5&&[4,5,6,9,10,11].includes(S.month))?`最低8℃以下が${a}日 → 露地・無加温では着果不良・乱形果の目安です（施設は夜温の確保を）。`:null; }},
+  {crop:"トマト・果菜類",kind:"rain",label:"乾燥後の雨による裂果",test:S=>{ const r=S.dryHeavy(5,20);
+    return r?`${jpDate(r.date)}に、乾燥続きの後で${fmt(r.precip,0)}mmの雨 → 裂果が出やすくなります。`:null; }},
+  {crop:"トマト・果菜類",kind:"rain",label:"乾燥による尻腐れ果",test:S=>(S.dryRun>=10&&S.tAvg!=null&&S.tAvg>=20)?
+    `雨がほぼ降らない日が${S.dryRun}日連続・平均${fmt(S.tAvg,1)}℃ → 尻腐れ果（カルシウム不足）に注意。かん水の状況を確認してください。`:null},
+];
+// 直近CROP_WINDOW日の気象から、作物別の特記事項を作る（kind: "temp"=気温面 / "rain"=雨の面）
+function cropRiskItems(kind,arr,i1,station){
+  if(i1<0) return [];
+  const i0=Math.max(0,i1-CROP_WINDOW+1), S=winStats(arr,i0,i1,station);
+  if(S.n<5) return [];
+  const hits=CROP_RULES.filter(r=>r.kind===kind).map(r=>({crop:r.crop,t:r.test(S)})).filter(h=>h.t);
+  const out=[{t:`<b>🥬 品質面の特記事項</b>（${jpDate(arr[i0].date)}〜${jpDate(arr[i1].date)}の${S.n}日間・一般的な目安）`}];
+  if(!hits.length) out.push({t:`レタス・キャベツ/ブロッコリー・葉物・トマト/果菜で、${kind==="temp"?"気温":"雨"}の面から品質不良につながる目立った条件はありません。`});
+  else hits.forEach(h=>out.push({t:`【${h.crop}】${h.t}`,lv:"warn"}));
+  if(kind==="temp"&&!S.hasX) out.push({t:"最高・最低気温のデータが無いため、一部の判定は行っていません。",lv:"muted"});
+  return out;
+}
+
+function tempInsights(o){
+  const {station,curYear,curArr,curLast,byYear,nPts,vf,label}=o;
+  if(curLast<0) return [];
+  const it=[];
+  const curVal=cumulative(curArr,vf,curLast)[curLast][1];
+  const d0=curArr[0].date, d1=curArr[curLast].date;
+  it.push({t:`🗓 ${jpDate(d0,true)}〜${jpDate(d1,true)}（${curLast+1}日間）の${label}は <b>${fmt(curVal,0)}℃・日</b> です。`});
+  const prev=byYear[curYear-1];
+  if(prev&&prev.atCur!=null){
+    const diff=curVal-prev.atCur, lead=leadDays(curVal,prev.pts,curLast);
+    const p=Math.abs(prev.atCur)>=100? `（${sgn(diff/prev.atCur*100,1)}%）`:"";
+    it.push({t:`📅 前年（${curYear-1}年）の同じ時点と比べて <b>${sgn(diff)}℃・日</b>${p}${paceText(lead,"前年")}です。`, lv: lead!=null&&Math.abs(lead)>=5?"warn":""});
+  }
+  if(nPts&&nPts[curLast]){
+    const nVal=nPts[curLast][1];
+    if(nVal>0){ const diff=curVal-nVal, lead=leadDays(curVal,nPts,curLast);
+      const p=nVal>=100?`（平年比 ${fmt(curVal/nVal*100,0)}%）`:"";
+      it.push({t:`📊 平年値と比べて <b>${sgn(diff)}℃・日</b>${p}${paceText(lead,"平年")}です。`, lv: lead!=null&&Math.abs(lead)>=5?"warn":""}); }
+  }
+  const vals=Object.values(byYear).map(b=>b.atCur).filter(v=>v!=null);
+  if(vals.length>=5){
+    const rank=1+vals.filter(v=>v>curVal+1e-9).length; let s=`🏆 過去${vals.length}年の同じ時点で比べると、高い方から <b>${rank}番目</b>`, lv="";
+    const ex=extremeSide(rank,vals.length);
+    if(ex===1){ s+="（記録的な高温ペース）"; lv="warn"; } else if(ex===-1){ s+="（記録的な低温ペース）"; lv="warn"; }
+    it.push({t:s+"。",lv});
+  }
+  // 直近30日
+  const W=Math.min(30,curLast+1), i0=curLast-W+1, cT=[],pT=[],nT=[];
+  for(let i=i0;i<=curLast;i++){ cT.push(curArr[i].temp); nT.push(normalOf(station,curArr[i].date,"temp")); if(prev) pT.push(prev.arr[i]?prev.arr[i].temp:null); }
+  const cm=meanOf(cT), pm=meanOf(pT), nm=meanOf(nT);
+  if(cm!=null){
+    const parts=[]; if(pm!=null) parts.push(`前年同期 ${sgn(cm-pm,1)}℃`); if(nm!=null) parts.push(`平年 ${sgn(cm-nm,1)}℃`);
+    let s=`🌡 直近${W}日（${jpDate(curArr[i0].date)}〜${jpDate(d1)}）の平均気温は <b>${fmt(cm,1)}℃</b>${parts.length?`（${parts.join("、")}）`:""}`, lv="";
+    if(nm!=null&&cm-nm>=1.5){ s+=" → 最近は暑い傾向です"; lv="warn"; } else if(nm!=null&&cm-nm<=-1.5){ s+=" → 最近は涼しい（寒い）傾向です"; lv="warn"; }
+    it.push({t:s+"。",lv});
+  }
+  // 平年との差が大きい日・高温日
+  const anom=(r,fn)=>{ if(r.temp==null) return false; const nv=normalOf(station,r.date,"temp"); return nv!=null&&fn(r.temp-nv); };
+  const hotC=countDays(curArr,curLast,r=>anom(r,d=>d>=3)), hotP=prev?countDays(prev.arr,curLast,r=>anom(r,d=>d>=3)):null;
+  const coldC=countDays(curArr,curLast,r=>anom(r,d=>d<=-3)), coldP=prev?countDays(prev.arr,curLast,r=>anom(r,d=>d<=-3)):null;
+  if(hotC||hotP) it.push({t:`🔥 平年より3℃以上暑い日：<b>${hotC}日</b>${hotP!=null?`（前年同期 ${hotP}日）`:""}`, lv: hotP!=null&&hotC-hotP>=5?"warn":""});
+  if(coldC||coldP) it.push({t:`❄️ 平年より3℃以上寒い日：<b>${coldC}日</b>${coldP!=null?`（前年同期 ${coldP}日）`:""}`, lv: coldP!=null&&coldC-coldP>=5?"warn":""});
+  const h25=countDays(curArr,curLast,r=>r.temp!=null&&r.temp>=25), h25p=prev?countDays(prev.arr,curLast,r=>r.temp!=null&&r.temp>=25):null;
+  if(h25||h25p) it.push({t:`☀️ 日平均気温25℃以上の日（高温ストレスの目安）：<b>${h25}日</b>${h25p!=null?`（前年同期 ${h25p}日）`:""}`, lv: h25p!=null&&h25-h25p>=5?"warn":""});
+  // 最高・最低気温（自動取得データ等に含まれる場合）
+  if(countDays(curArr,curLast,r=>r.tmax!=null||r.tmin!=null)>0){
+    const hasX=a=>a&&countDays(a,curLast,r=>r.tmax!=null||r.tmin!=null)>0;
+    const pa=prev&&hasX(prev.arr)?prev.arr:null, c=(arr,fn)=>arr?countDays(arr,curLast,fn):null; // 前年に最高/最低が無ければ比較しない
+    const d30=c(curArr,r=>r.tmax!=null&&r.tmax>=30), d30p=c(pa,r=>r.tmax!=null&&r.tmax>=30);
+    const d35=c(curArr,r=>r.tmax!=null&&r.tmax>=35), d35p=c(pa,r=>r.tmax!=null&&r.tmax>=35);
+    const n25=c(curArr,r=>r.tmin!=null&&r.tmin>=25), n25p=c(pa,r=>r.tmin!=null&&r.tmin>=25);
+    const f0=c(curArr,r=>r.tmin!=null&&r.tmin<=0), f0p=c(pa,r=>r.tmin!=null&&r.tmin<=0);
+    if(d30||d30p) it.push({t:`🥵 真夏日（最高30℃以上）：<b>${d30}日</b>、うち猛暑日（最高35℃以上）<b>${d35}日</b>${pa?`（前年同期 ${d30p}日・${d35p}日）`:""}`, lv:(pa&&(d35>d35p||d30-d30p>=5))?"warn":""});
+    if(n25||n25p) it.push({t:`🌙 最低気温25℃以上の日（熱帯夜の目安）：<b>${n25}日</b>${pa?`（前年同期 ${n25p}日）`:""}`});
+    if(f0||f0p) it.push({t:`🧊 最低気温0℃以下の日（凍結の目安）：<b>${f0}日</b>${pa?`（前年同期 ${f0p}日）`:""}`});
+    // 春の最終・秋の初めての「最低気温0℃以下」（霜の目安）
+    const lastF=(arr,upto)=>{ let d=null; for(let i=0;i<=upto&&i<arr.length;i++){ const r=arr[i]; if(r&&r.tmin!=null&&r.tmin<=0&&+r.date.slice(5,7)<=6) d=r.date; } return d; };
+    const firstF=(arr,upto)=>{ for(let i=0;i<=upto&&i<arr.length;i++){ const r=arr[i]; if(r&&r.tmin!=null&&r.tmin<=0&&+r.date.slice(5,7)>=8) return r.date; } return null; };
+    const lf=lastF(curArr,curLast), lfp=pa?lastF(pa,pa.length-1):null;
+    const springDone=+d1.slice(5,7)>=7;
+    if(lf) it.push({t:`🌱 ${springDone?"今年の春に最後に":"直近で"}最低気温0℃以下になったのは <b>${jpDate(lf)}</b>${lfp?`（前年の春は${jpDate(lfp)}が最後）`:""}。※最低気温3℃前後でも地表付近では霜が降りることがあります。`});
+    const ff=firstF(curArr,curLast), ffp=pa?firstF(pa,pa.length-1):null;
+    if(ff) it.push({t:`🍂 秋に初めて最低気温0℃以下になったのは <b>${jpDate(ff)}</b>${ffp?`（前年は${jpDate(ffp)}）`:""}。`, lv: ffp&&ff.slice(5)<ffp.slice(5)?"warn":""});
+    else if(ffp&&+d1.slice(5,7)>=9) it.push({t:`🍂 前年は <b>${jpDate(ffp)}</b> に秋の初めての0℃以下を記録しています。霜・低温への備えの目安にしてください。`});
+  }
+  const miss=countDays(curArr,curLast,r=>r.temp==null);
+  if(miss) it.push({t:`ℹ️ 期間中に気温の欠測が${miss}日あります（その分、積算値は小さめです）。`,lv:"muted"});
+  it.push(...cropRiskItems("temp",curArr,curLast,station));
+  const fr=freshnessItem(d1); if(fr) it.push(fr);
+  return it;
+}
+
+function rainInsights(o){
+  const {station,curYear,curArr,curLast,byYear,nPts}=o;
+  if(curLast<0) return [];
+  const it=[], d0=curArr[0].date, d1=curArr[curLast].date;
+  const curVal=cumulative(curArr,precipValueFn,curLast)[curLast][1];
+  it.push({t:`🗓 ${jpDate(d0,true)}〜${jpDate(d1,true)}（${curLast+1}日間）の降水量合計は <b>${fmt(curVal,0)}mm</b> です。`});
+  const prev=byYear[curYear-1];
+  if(prev&&prev.atCur!=null){
+    const diff=curVal-prev.atCur, r=prev.atCur>0?curVal/prev.atCur*100:null;
+    it.push({t:`📅 前年（${curYear-1}年）の同じ時点と比べて <b>${sgn(diff)}mm</b>${r!=null?`（前年比 ${fmt(r,0)}%）`:""}です。`, lv: r!=null&&Math.abs(r-100)>=30?"warn":""});
+  }
+  if(nPts&&nPts[curLast]&&nPts[curLast][1]>0){
+    const nVal=nPts[curLast][1], r=curVal/nVal*100; let s=`📊 平年値（${fmt(nVal,0)}mm）に対して <b>平年比 ${fmt(r,0)}%</b>`, lv="";
+    if(r>=130){ s+=" → 雨が多い状態です"; lv="warn"; } else if(r<=70){ s+=" → 雨が少ない状態です"; lv="warn"; } else s+=" → ほぼ平年並みです";
+    it.push({t:s+"。",lv});
+  }
+  const vals=Object.values(byYear).map(b=>b.atCur).filter(v=>v!=null);
+  if(vals.length>=5){ const rank=1+vals.filter(v=>v>curVal+1e-9).length;
+    const ex=extremeSide(rank,vals.length);
+    it.push({t:`🏆 過去${vals.length}年の同じ時点で比べると、雨の多い方から <b>${rank}番目</b>${ex===1?"（記録的な多雨）":ex===-1?"（記録的な少雨）":""}。`, lv: ex?"warn":""}); }
+  // 直近30日
+  const W=Math.min(30,curLast+1), i0=curLast-W+1, cP=[],pP=[],nP=[];
+  for(let i=i0;i<=curLast;i++){ cP.push(curArr[i].precip); nP.push(normalOf(station,curArr[i].date,"precip")); if(prev) pP.push(prev.arr[i]?prev.arr[i].precip:null); }
+  const cs=sumOf(cP), ps=sumOf(pP), ns=sumOf(nP);
+  if(cs!=null){ const parts=[]; if(ps!=null) parts.push(`前年同期 ${fmt(ps,0)}mm`); if(ns) parts.push(`平年の約${fmt(cs/ns*100,0)}%`);
+    let s=`💧 直近${W}日（${jpDate(curArr[i0].date)}〜${jpDate(d1)}）の降水量は <b>${fmt(cs,0)}mm</b>${parts.length?`（${parts.join("、")}）`:""}`, lv="";
+    if(ns&&cs/ns<=0.5){ s+=" → 最近かなり雨が少ないです"; lv="warn"; } else if(ns&&cs/ns>=1.5){ s+=" → 最近雨が多いです"; lv="warn"; }
+    it.push({t:s+"。",lv}); }
+  // 連続無降水
+  let run=0,maxRun=0,maxEnd=null;
+  for(let i=0;i<=curLast;i++){ const p=curArr[i].precip; if(p==null){ run=0; continue; } if(p<1){ run++; if(run>maxRun){ maxRun=run; maxEnd=curArr[i].date; } } else run=0; }
+  if(maxRun>=3) it.push({t:`🌤 期間中で最も長く雨がほぼ降らなかった（1mm未満）のは <b>${maxRun}日連続</b>（${jpDate(maxEnd)}まで）。`});
+  if(run>=5) it.push({t:`⚠️ ${jpDate(d1)}時点で <b>${run}日連続</b> 雨がほぼ降っていません。乾燥・かん水に注意してください。`,lv:"warn"});
+  // 大雨
+  let mx=null,mxd=null; for(let i=0;i<=curLast;i++){ const p=curArr[i].precip; if(p!=null&&(mx==null||p>mx)){ mx=p; mxd=curArr[i].date; } }
+  const n50=countDays(curArr,curLast,r=>r.precip!=null&&r.precip>=50), n50p=prev?countDays(prev.arr,curLast,r=>r.precip!=null&&r.precip>=50):null;
+  if(mx!=null&&mx>=20) it.push({t:`☔ 期間中の最大日降水量は ${jpDate(mxd)} の <b>${fmt(mx,1)}mm</b>。1日50mm以上の大雨は <b>${n50}回</b>${n50p!=null?`（前年同期 ${n50p}回）`:""}。`, lv: n50>0?"warn":""});
+  const rd=countDays(curArr,curLast,r=>r.precip!=null&&r.precip>=1), rdp=prev?countDays(prev.arr,curLast,r=>r.precip!=null&&r.precip>=1):null;
+  it.push({t:`🌧 雨の日（1mm以上）：<b>${rd}日</b>${rdp!=null?`（前年同期 ${rdp}日）`:""}`});
+  const miss=countDays(curArr,curLast,r=>r.precip==null);
+  if(miss) it.push({t:`ℹ️ 期間中に降水量の欠測が${miss}日あります。`,lv:"muted"});
+  it.push(...cropRiskItems("rain",curArr,curLast,station));
+  const fr=freshnessItem(d1); if(fr) it.push(fr);
+  return it;
+}
+
+// 類似年のその後（平年差・降水比）
+function afterStats(station,startMMDD,y,e,days){
+  const arr=seasonArray(station,y,startMMDD,e+1+days); const t=[],n=[]; let p=0,pc=0,pn=0;
+  for(let i=e+1;i<arr.length;i++){ const r=arr[i];
+    if(r.temp!=null){ t.push(r.temp); const nv=normalOf(station,r.date,"temp"); if(nv!=null) n.push(nv); }
+    if(r.precip!=null){ p+=r.precip; pc++; } const np=normalOf(station,r.date,"precip"); if(np!=null) pn+=np; }
+  const tm=meanOf(t), nm=meanOf(n);
+  return {anom: tm!=null&&nm!=null? tm-nm : null, pRatio: pc&&pn? p/pn*100 : null};
+}
+function similarInsights(station,startMMDD,sim){
+  const it=[], top=sim.results; if(!top.length) return it;
+  const Y=top[0].y, e=sim.elapsed;
+  it.push({t:`🔍 今年の気温の推移は <b>${Y}年</b> に最も近く、日平均気温の差は平均で約±${fmt(top[0].tempRmse,1)}℃でした。`});
+  const a=afterStats(station,startMMDD,Y,e,30);
+  if(a.anom!=null) it.push({t:`➡️ ${Y}年はこの時期のあと30日間、平年より <b>${sgn(a.anom,1)}℃</b>（${a.anom>=0.5?"暑め":a.anom<=-0.5?"涼しめ":"平年並み"}）${a.pRatio!=null?`、降水量は平年の約${fmt(a.pRatio,0)}%`:""}でした。`});
+  const t3=top.slice(0,3).map(r=>({y:r.y,...afterStats(station,startMMDD,r.y,e,30)})).filter(r=>r.anom!=null);
+  if(t3.length>=2){
+    const hot=t3.filter(r=>r.anom>=0.5).length, cool=t3.filter(r=>r.anom<=-0.5).length;
+    if(hot===t3.length) it.push({t:`⚠️ 似ている上位${t3.length}年（${t3.map(r=>r.y).join("・")}年）は、いずれもその後平年より暑くなっています。高温が続く可能性に注意。`,lv:"warn"});
+    else if(cool===t3.length) it.push({t:`⚠️ 似ている上位${t3.length}年（${t3.map(r=>r.y).join("・")}年）は、いずれもその後平年より涼しくなっています。低温に注意。`,lv:"warn"});
+    else it.push({t:`↔️ 似ている上位${t3.length}年のその後の傾向はばらばらです（${t3.map(r=>`${r.y}年 ${sgn(r.anom,1)}℃`).join("、")}）。この先は幅を持って見る必要があります。`});
+  }
+  const py=sim.curYear-1, pr=top.findIndex(r=>r.y===py);
+  if(pr>=0) it.push({t:`📅 前年（${py}年）は類似度 ${pr+1}位／${top.length}年中。${pr<top.length/3?"今年は前年と似た経過です。":pr>=top.length*2/3?"今年は前年とはかなり違う経過です。":"前年との似かたは中くらいです。"}`});
+  return it;
+}
+
+/* ---------- 積算温度タブ ---------- */
+function renderTemp(){
+  const station=UI.station; if(!station){return;}
+  const mode=UI.tempMode;
+  const base=parseFloat(document.getElementById("baseTemp").value)||0;
+  const horizon=Math.max(1,parseInt(document.getElementById("tempDays").value)||365);
+  document.getElementById("baseTempField").style.opacity = mode==="effective"?"1":"0.4";
+  const startMMDD=mmdd(UI.startDate);
+  const curYear=currentSeasonYear(startMMDD);
+  const years=seasonYears(station,startMMDD);
+  const vis=effectiveYears(years);
+  const vf=tempValueFn(mode,base);
+
+  // 現在シーズンの経過offset
+  const curArr=seasonArray(station,curYear,startMMDD,horizon);
+  const curLast=lastFilledOffset(curArr);
+
+  const series=[]; const tableRows=[]; const pastAtCur=[]; const byYear={};
+  years.forEach((y,i)=>{
+    const arr=seasonArray(station,y,startMMDD,horizon);
+    const last=lastFilledOffset(arr);
+    if(last<0) return;
+    const pts=cumulative(arr,vf,last);
+    const isCur=(y===curYear);
+    // 現時点相当（curLast offset）の値
+    let atCur=null; if(curLast>=0){ const p=pts.find(q=>q[0]===curLast); if(p) atCur=p[1]; }
+    byYear[y]={arr,pts,atCur};
+    if(!isCur && atCur!=null) pastAtCur.push(atCur); // 平年平均は全年で算出
+    if(!vis.has(y)) return; // 表示対象の年だけ描画・表へ
+    series.push({name:isCur?`${y}(今年)`:String(y), color:isCur?CUR_COLOR:yearColor(i,years.length),
+      width:isCur?3:1.2, pts, _cur:isCur});
+    tableRows.push({y,isCur,atCur,final:pts[pts.length-1][1],days:last+1});
+  });
+  // 平年値ライン（常時表示）
+  const nPts=normalCumulative(station,curYear,startMMDD,horizon,vf);
+  if(nPts) series.push({name:"平年値",color:NORMAL_COLOR,width:2,dash:true,pts:nPts});
+  // 今年を最前面に
+  series.sort((a,b)=>(a._cur?1:0)-(b._cur?1:0));
+
+  drawChart(document.getElementById("tempChart"),{
+    series, xLabel:"開始日からの経過日数", yLabel: mode==="effective"?"有効積算温度(℃・日)":"積算温度(℃・日)",
+    xFmt:x=>x+"日", yFmt:y=>fmt(y,0),
+  });
+  attachHover(document.getElementById("tempChart"), x=>`${x}日目（${mmdd(addDays(UI.startDate,x))}頃）`);
+
+  // KPI（今年は選択に関わらず算出、平年平均は全年ベース）
+  const curCumPts=cumulative(curArr,vf,curLast);
+  const cur={ atCur: curLast>=0&&curCumPts.length? curCumPts[curCumPts.length-1][1] : null };
+  const avgAtCur= pastAtCur.length? pastAtCur.reduce((a,b)=>a+b,0)/pastAtCur.length : null;
+  const kpi=document.getElementById("tempKpi");
+  kpi.innerHTML=`
+    <div class="box"><div class="l">今年の現時点の積算（${curLast>=0?curLast+1:0}日分）</div><div class="v">${cur&&cur.atCur!=null?fmt(cur.atCur,0):"–"} <span class="u">℃・日</span></div></div>
+    <div class="box"><div class="l">平年（過去平均）の同時点</div><div class="v">${avgAtCur!=null?fmt(avgAtCur,0):"–"} <span class="u">℃・日</span></div></div>
+    <div class="box"><div class="l">平年差</div><div class="v" style="color:${cur&&avgAtCur!=null&&cur.atCur>=avgAtCur?'#dc2626':'#2563eb'}">${cur&&cur.atCur!=null&&avgAtCur!=null?(cur.atCur>=avgAtCur?"+":"")+fmt(cur.atCur-avgAtCur,0):"–"} <span class="u">℃・日</span></div></div>`;
+
+  // テーブル
+  tableRows.sort((a,b)=>b.y-a.y);
+  document.getElementById("tempTable").innerHTML=`
+    <table><thead><tr><th>年</th><th>現時点相当の積算</th><th>期間合計(${horizon}日)</th><th>データ日数</th></tr></thead>
+    <tbody>${tableRows.map(r=>`<tr class="${r.isCur?'me':''}"><td>${r.y}${r.isCur?'（今年）':''}</td><td>${fmt(r.atCur,0)}</td><td>${fmt(r.final,0)}</td><td>${r.days}</td></tr>`).join("")}</tbody></table>`;
+  document.getElementById("tempInsight").innerHTML=insightHTML(tempInsights({station,curYear,curArr,curLast,byYear,nPts,vf,label: mode==="effective"?`有効積算温度（基準${base}℃）`:"積算温度"}),CROP_NOTE);
+}
+
+/* ---------- 積算降水量タブ ---------- */
+function renderRain(){
+  const station=UI.station; if(!station) return;
+  const horizon=Math.max(1,parseInt(document.getElementById("rainDays").value)||365);
+  const startMMDD=mmdd(UI.startDate);
+  const curYear=currentSeasonYear(startMMDD);
+  const years=seasonYears(station,startMMDD);
+  const vis=effectiveYears(years);
+  const curArr=seasonArray(station,curYear,startMMDD,horizon);
+  const curLast=lastFilledOffset(curArr);
+
+  const series=[]; const tableRows=[]; const pastAtCur=[]; const byYear={};
+  years.forEach((y,i)=>{
+    const arr=seasonArray(station,y,startMMDD,horizon);
+    const last=lastFilledOffset(arr); if(last<0) return;
+    const pts=cumulative(arr,precipValueFn,last);
+    const isCur=(y===curYear);
+    let atCur=null; if(curLast>=0){ const p=pts.find(q=>q[0]===curLast); if(p) atCur=p[1]; }
+    byYear[y]={arr,pts,atCur};
+    if(!isCur && atCur!=null) pastAtCur.push(atCur);
+    if(!vis.has(y)) return;
+    series.push({name:isCur?`${y}(今年)`:String(y),color:isCur?CUR_COLOR:yearColor(i,years.length),width:isCur?3:1.2,pts,_cur:isCur});
+    tableRows.push({y,isCur,atCur,final:pts[pts.length-1][1],days:last+1});
+  });
+  // 平年値ライン（常時表示）
+  const nPts=normalCumulative(station,curYear,startMMDD,horizon,precipValueFn);
+  if(nPts) series.push({name:"平年値",color:NORMAL_COLOR,width:2,dash:true,pts:nPts});
+  series.sort((a,b)=>(a._cur?1:0)-(b._cur?1:0));
+  drawChart(document.getElementById("rainChart"),{
+    series,xLabel:"開始日からの経過日数",yLabel:"積算降水量(mm)",xFmt:x=>x+"日",yFmt:y=>fmt(y,0)});
+  attachHover(document.getElementById("rainChart"), x=>`${x}日目（${mmdd(addDays(UI.startDate,x))}頃）`);
+
+  const curCumPts=cumulative(curArr,precipValueFn,curLast);
+  const cur={ atCur: curLast>=0&&curCumPts.length? curCumPts[curCumPts.length-1][1] : null };
+  const avg= pastAtCur.length? pastAtCur.reduce((a,b)=>a+b,0)/pastAtCur.length:null;
+  document.getElementById("rainKpi").innerHTML=`
+    <div class="box"><div class="l">今年の現時点の積算降水量</div><div class="v">${cur&&cur.atCur!=null?fmt(cur.atCur,0):"–"} <span class="u">mm</span></div></div>
+    <div class="box"><div class="l">平年（過去平均）の同時点</div><div class="v">${avg!=null?fmt(avg,0):"–"} <span class="u">mm</span></div></div>
+    <div class="box"><div class="l">平年差</div><div class="v" style="color:${cur&&avg!=null&&cur.atCur>=avg?'#2563eb':'#b45309'}">${cur&&cur.atCur!=null&&avg!=null?(cur.atCur>=avg?"+":"")+fmt(cur.atCur-avg,0):"–"} <span class="u">mm</span></div></div>`;
+  tableRows.sort((a,b)=>b.y-a.y);
+  document.getElementById("rainTable").innerHTML=`
+    <table><thead><tr><th>年</th><th>現時点相当</th><th>期間合計(${horizon}日)</th><th>データ日数</th></tr></thead>
+    <tbody>${tableRows.map(r=>`<tr class="${r.isCur?'me':''}"><td>${r.y}${r.isCur?'（今年）':''}</td><td>${fmt(r.atCur,0)}</td><td>${fmt(r.final,0)}</td><td>${r.days}</td></tr>`).join("")}</tbody></table>`;
+  document.getElementById("rainInsight").innerHTML=insightHTML(rainInsights({station,curYear,curArr,curLast,byYear,nPts}),CROP_NOTE);
+}
+
+/* ---------- 類似年判定 ---------- */
+function computeSimilarity(station, startMMDD, wTemp){
+  const wPrecip=1-wTemp;
+  const horizon=370;
+  const curYear=currentSeasonYear(startMMDD);
+  const curArr=seasonArray(station,curYear,startMMDD,horizon);
+  const elapsed=lastFilledOffset(curArr);
+  if(elapsed<5) return {curYear,elapsed,results:[],error:"今年のデータが不足しています"};
+
+  const years=seasonYears(station,startMMDD).filter(y=>y<curYear);
+  const raw=[];
+  years.forEach(y=>{
+    const arr=seasonArray(station,y,startMMDD,elapsed+1);
+    // 気温RMSE
+    let se=0,ns=0, cumP=0, cumPc=0, np=0;
+    for(let i=0;i<=elapsed;i++){
+      const a=curArr[i], b=arr[i];
+      if(a.temp!=null&&b.temp!=null){ se+=(a.temp-b.temp)**2; ns++; }
+      if(a.precip!=null) cumPc+=a.precip;
+      if(b.precip!=null) cumP+=b.precip;
+      if(b.precip!=null) np++;
+    }
+    if(ns<Math.max(5,(elapsed+1)*0.5)) return; // データ不足の年は除外
+    const tempRmse=Math.sqrt(se/ns);
+    const precipDiff=Math.abs(cumP-cumPc);
+    raw.push({y, tempRmse, precipDiff, cumP});
+  });
+  if(!raw.length) return {curYear,elapsed,results:[]};
+  // 正規化して合成スコア
+  const tScale=Math.max(1e-6, Math.max(...raw.map(r=>r.tempRmse)));
+  const pScale=Math.max(1e-6, Math.max(...raw.map(r=>r.precipDiff)));
+  raw.forEach(r=>{ r.score = wTemp*(r.tempRmse/tScale)+wPrecip*(r.precipDiff/pScale); });
+  raw.sort((a,b)=>a.score-b.score);
+  return {curYear,elapsed,results:raw, curCumP: (curArr.slice(0,elapsed+1).reduce((a,b)=>a+(b.precip||0),0))};
+}
+
+function renderSimilar(){
+  const station=UI.station; if(!station) return;
+  const wTemp=parseFloat(document.getElementById("wTemp").value);
+  document.getElementById("wTempLbl").textContent=`気温${Math.round(wTemp*100)}% / 降水量${Math.round((1-wTemp)*100)}%`;
+  const startMMDD=mmdd(UI.startDate);
+  const sim=computeSimilarity(station,startMMDD,wTemp);
+  const sumEl=document.getElementById("simSummary");
+  if(!sim.results.length){ sumEl.innerHTML=`<div class="hint">${sim.error||"比較できる年がありません（データを追加してください）。"}</div>`;
+    drawChart(document.getElementById("simChart"),{series:[]}); document.getElementById("simTable").innerHTML=""; document.getElementById("simInsight").innerHTML=""; return; }
+
+  const top=sim.results.slice(0,5);
+  sumEl.innerHTML=`
+    <div class="row" style="margin:4px 0 10px">
+      <div>今年（${sim.curYear}年）の <strong>${mmdd(UI.startDate)}</strong> から <strong>${sim.elapsed+1}日間</strong> の天候に最も近いのは…</div>
+    </div>
+    <div class="kpi">
+      <div class="box" style="border-color:#f0b8a8;background:#fff6f2">
+        <div class="l">最も近い年</div>
+        <div class="v" style="color:${CUR_COLOR}">${top[0].y}年</div>
+        <div class="u">気温の平均差 約±${fmt(top[0].tempRmse,1)}℃</div>
+      </div>
+      ${top.slice(1,3).map((r,i)=>`<div class="box"><div class="l">${i+2}番目に近い年</div><div class="v" style="color:${SIM_COLORS[i+1]}">${r.y}年</div><div class="u">気温の平均差 約±${fmt(r.tempRmse,1)}℃</div></div>`).join("")}
+    </div>`;
+  document.getElementById("simInsight").innerHTML=insightHTML(similarInsights(station,startMMDD,sim),"類似年の「その後」は参考であり、今年も同じになるとは限りません。");
+
+  // チャート：今年＋上位3年の気温推移（日別）
+  const horizon=sim.elapsed+1;
+  const curArr=seasonArray(station,sim.curYear,startMMDD,horizon);
+  const mkTemp=arr=>arr.map((r,i)=>r.temp!=null?[i,r.temp]:null).filter(Boolean);
+  const series=[{name:`${sim.curYear}(今年)`,color:CUR_COLOR,width:3,pts:mkTemp(curArr)}];
+  top.slice(0,3).forEach((r,i)=>{ const arr=seasonArray(station,r.y,startMMDD,horizon);
+    series.push({name:`${r.y}年`,color:SIM_COLORS[i],width:1.6,pts:mkTemp(arr)}); });
+  drawChart(document.getElementById("simChart"),{series,xLabel:"開始日からの経過日数",yLabel:"日平均気温(℃)",xFmt:x=>x+"日",yFmt:y=>fmt(y,0)});
+  attachHover(document.getElementById("simChart"), x=>`${x}日目（${mmdd(addDays(UI.startDate,x))}頃）`);
+
+  document.getElementById("simTable").innerHTML=`
+    <table><thead><tr><th>順位</th><th>年</th><th>気温の平均差(±℃)</th><th>降水量の差(mm)</th><th>総合スコア(小=近い)</th></tr></thead>
+    <tbody>${sim.results.map((r,i)=>`<tr class="${i<3?'sim':''}"><td>${i+1}</td><td>${r.y}年</td><td>${fmt(r.tempRmse,2)}</td><td>${fmt(r.precipDiff,0)}</td><td>${fmt(r.score,3)}</td></tr>`).join("")}</tbody></table>
+    <div class="hint" style="margin-top:6px">総合スコアは「気温の近さ」と「降水量の近さ」を重み付けして0を最良として並べたものです。</div>`;
+}
+
+/* ---------- この先の見通し ---------- */
+function renderOutlook(){
+  const station=UI.station; if(!station) return;
+  const wTemp=parseFloat(document.getElementById("wTemp").value)||0.85;
+  const nAnalog=Math.max(1,parseInt(document.getElementById("nAnalog").value)||3);
+  const ahead=UI.ahead;
+  const startMMDD=mmdd(UI.startDate);
+  const sim=computeSimilarity(station,startMMDD,wTemp);
+  const kpi=document.getElementById("outlookKpi");
+  const noteEl=document.getElementById("outlookNote");
+  if(!sim.results.length){ kpi.innerHTML=`<div class="hint">${sim.error||"見通しを作るには過去データが必要です。"}</div>`;
+    drawChart(document.getElementById("outlookChart"),{series:[]}); noteEl.textContent=""; document.getElementById("outlookInsight").innerHTML=""; return; }
+
+  const analogs=sim.results.slice(0,nAnalog);
+  const elapsed=sim.elapsed;
+  const total=elapsed+1+ahead;
+  const curArr=seasonArray(station,sim.curYear,startMMDD,elapsed+1);
+  // 現時点までの積算温度（単純）
+  let curCum=0; curArr.forEach(r=>{ if(r.temp!=null) curCum+=r.temp; });
+
+  // 各先日offset(elapsed+1..total-1)で類似年の気温を集計
+  const meanPts=[],upPts=[],lowPts=[],cumProjPts=[];
+  let acc=curCum;
+  // 実績（今年）気温線
+  const actualTemp=curArr.map((r,i)=>r.temp!=null?[i,r.temp]:null).filter(Boolean);
+
+  const aheadArrs=analogs.map(r=>seasonArray(station,r.y,startMMDD,total));
+  for(let off=elapsed+1;off<total;off++){
+    const vals=aheadArrs.map(arr=>arr[off]&&arr[off].temp).filter(v=>v!=null);
+    if(vals.length){ const m=vals.reduce((a,b)=>a+b,0)/vals.length;
+      meanPts.push([off,m]); upPts.push([off,Math.max(...vals)]); lowPts.push([off,Math.min(...vals)]);
+      acc+=m; cumProjPts.push([off,acc]);
+    }
+  }
+  // 先の降水量合計（類似年平均）
+  const precipTotals=aheadArrs.map(arr=>{ let s=0,c=0; for(let off=elapsed+1;off<total;off++){ if(arr[off]&&arr[off].precip!=null){s+=arr[off].precip;c++;} } return c? s:null; }).filter(v=>v!=null);
+  const avgPrecipAhead= precipTotals.length? precipTotals.reduce((a,b)=>a+b,0)/precipTotals.length:null;
+  // 先の平均気温（類似年平均）
+  const avgTempAhead= meanPts.length? meanPts.reduce((a,b)=>a+b[1],0)/meanPts.length:null;
+  const projCumEnd= cumProjPts.length? cumProjPts[cumProjPts.length-1][1]:curCum;
+
+  kpi.innerHTML=`
+    <div class="box"><div class="l">今後${ahead}日の平均気温（推定）</div><div class="v">${fmt(avgTempAhead,1)} <span class="u">℃</span></div></div>
+    <div class="box"><div class="l">今後${ahead}日の降水量合計（推定）</div><div class="v">${fmt(avgPrecipAhead,0)} <span class="u">mm</span></div></div>
+    <div class="box"><div class="l">${ahead}日後の積算温度（推定）</div><div class="v">${fmt(projCumEnd,0)} <span class="u">℃・日</span></div></div>`;
+
+  // 自動コメント（平年との比較・確からしさ）
+  {
+    const lastDate=curArr[elapsed].date, nT=[], nP=[], it=[];
+    for(let k=1;k<=ahead;k++){ const d=addDays(lastDate,k); nT.push(normalOf(station,d,"temp")); nP.push(normalOf(station,d,"precip")); }
+    const nm=meanOf(nT), np=sumOf(nP);
+    it.push({t:`🗓 ${jpDate(lastDate,true)}（データの最終日）から先の${ahead}日間を、似ている過去${analogs.length}年（${analogs.map(r=>r.y).join("・")}年）の実績から推定しています。`});
+    if(avgTempAhead!=null&&nm!=null){ const d=avgTempAhead-nm;
+      it.push({t:`🌡 平均気温は推定 <b>${fmt(avgTempAhead,1)}℃</b>、平年（${fmt(nm,1)}℃）より <b>${sgn(d,1)}℃</b> → ${d>=0.5?"平年より暑め":d<=-0.5?"平年より涼しめ":"ほぼ平年並み"}の見込みです。`, lv:Math.abs(d)>=1?"warn":""}); }
+    if(avgPrecipAhead!=null&&np){ const r=avgPrecipAhead/np*100;
+      it.push({t:`💧 降水量は推定 <b>${fmt(avgPrecipAhead,0)}mm</b>、平年（${fmt(np,0)}mm）の約 <b>${fmt(r,0)}%</b> → ${r>=120?"雨が多め":r<=80?"雨が少なめ":"ほぼ平年並み"}の見込みです。`, lv:(r>=140||r<=60)?"warn":""}); }
+    const anMeans=aheadArrs.map(arr=>meanOf(arr.slice(elapsed+1,total).map(r=>r.temp))).filter(v=>v!=null);
+    if(anMeans.length>=2){ const sp=Math.max(...anMeans)-Math.min(...anMeans);
+      it.push(sp>=1.5?{t:`↔️ 参考にした年どうしで平均気温に最大${fmt(sp,1)}℃の差があり、見通しの確からしさは低めです。`,lv:"warn"}
+                     :{t:`✅ 参考にした年どうしの差は最大${fmt(sp,1)}℃で、傾向は比較的そろっています。`}); }
+    // 類似年のこの先に「霜・猛暑」はどれくらいあったか
+    const avgCnt=fn=>{ const v=aheadArrs.map(arr=>{ const seg=arr.slice(elapsed+1,total); return seg.some(r=>r.tmin!=null||r.tmax!=null)? seg.filter(fn).length : null; }).filter(x=>x!=null); return v.length? meanOf(v):null; };
+    const f0=avgCnt(r=>r.tmin!=null&&r.tmin<=0), f3=avgCnt(r=>r.tmin!=null&&r.tmin<=3);
+    const h30=avgCnt(r=>r.tmax!=null&&r.tmax>=30), h35=avgCnt(r=>r.tmax!=null&&r.tmax>=35);
+    if(f3!=null&&f3>=0.5) it.push({t:`🧊 似ている年では、この先${ahead}日に最低気温3℃以下（霜の恐れ）の日が平均 約<b>${fmt(f3,1)}日</b>${f0>=0.05?`、0℃以下が約${fmt(f0,1)}日`:""}ありました。霜・凍結への備えを。`, lv:"warn"});
+    if(h30!=null&&h30>=1) it.push({t:`🥵 似ている年では、この先${ahead}日に最高30℃以上の日が平均 約<b>${fmt(h30,1)}日</b>（うち35℃以上 約${fmt(h35,1)}日）ありました。`, lv: h35>=1?"warn":""});
+    /* 類似年の「この先」に作物の品質リスク条件が出ていたか（CROP_WINDOW日ごとに判定し、半数以上の年で出たものを表示） */    { const hitN=CROP_RULES.map(()=>0);      aheadArrs.forEach(arr=>{ const hit=new Set(); for(let s=elapsed+1;s<total;s+=CROP_WINDOW){ const e=Math.min(total-1,s+CROP_WINDOW-1); if(e-s<6) break; const S=winStats(arr,s,e,station); if(S.n<5) continue; CROP_RULES.forEach((r,i)=>{ if(r.test(S)) hit.add(i); }); } hit.forEach(i=>hitN[i]++); });      const need=Math.ceil(aheadArrs.length/2), hits=CROP_RULES.map((r,i)=>({r,k:hitN[i]})).filter(x=>x.k>=need&&x.k>0);      it.push({t:`<b>🥬 品質面の特記事項（この先${ahead}日・似ている年から）</b>`});      if(!hits.length) it.push({t:`似ている${aheadArrs.length}年では、この先${ahead}日に作物の品質不良につながる目立った条件は多くありませんでした。`});      else hits.forEach(x=>it.push({t:`【${x.r.crop}】似ている${aheadArrs.length}年中${x.k}年で「${x.r.label}」につながる条件が出ていました。`,lv:"warn"})); }
+    const fr=freshnessItem(lastDate); if(fr) it.push(fr);
+    document.getElementById("outlookInsight").innerHTML=insightHTML(it,"見通しは過去の似た年からの推定で、予報ではありません。"+CROP_NOTE);
+  }
+
+  // 気温チャート（実績＋推定平均＋レンジ帯）
+  const series=[
+    {name:`${sim.curYear}年 実績`,color:CUR_COLOR,width:3,pts:actualTemp},
+    {name:"推定（類似年の平均）",color:"#2563eb",width:2,dash:true,pts:meanPts},
+  ];
+  drawChart(document.getElementById("outlookChart"),{
+    series, band: meanPts.length?{color:"rgba(37,99,235,.12)",upper:upPts,lower:lowPts}:null,
+    xLabel:"開始日からの経過日数",yLabel:"日平均気温(℃)",xFmt:x=>x+"日",yFmt:y=>fmt(y,0),
+    legendItems:[{name:`${sim.curYear}年 実績`,color:CUR_COLOR},{name:"推定(類似年の平均)",color:"#2563eb"},{name:"推定の範囲(最小〜最大)",color:"rgba(37,99,235,.35)"}]
+  });
+  attachHover(document.getElementById("outlookChart"), x=>`${x}日目（${mmdd(addDays(UI.startDate,x))}頃）`);
+
+  noteEl.innerHTML=`参考にした類似年：${analogs.map(r=>`<span class="badge">${r.y}年</span>`).join("")} ／ 帯は類似年の最小〜最大の範囲です。これらはあくまで<strong>過去の似た年からの推定</strong>で、実際の天候を保証するものではありません。`;
+}
+
+/* ---------- 月別サマリー・ヒートマップ ---------- */
+function monthlyInsights(grid,years,mode,normMonth,hasNorm,cellVal,cntFn){
+  const it=[]; if(!years.length) return it;
+  const isT=mode!=="rain", unit=isT?"℃":"mm", dec=isT?1:0;
+  const word={temp:"平均気温",tmax:"最高気温（月平均）",tmin:"最低気温（月平均）",rain:"降水量"}[mode];
+  const HI={temp:"暑い",tmax:"高い",tmin:"高い",rain:"雨の多い"}[mode], LO={temp:"寒い",tmax:"低い",tmin:"低い",rain:"雨の少ない"}[mode];
+  const dim=(y,m)=>new Date(Date.UTC(y,m,0)).getUTCDate();
+  const cnt=(y,m)=>cntFn(grid[y]&&grid[y][m]);
+  const complete=(y,m)=>cnt(y,m)>=dim(y,m)-2;
+  const val=(y,m)=>cellVal(grid[y]&&grid[y][m]);
+  const rankOf=(y,m)=>{ const pool=years.filter(yy=>complete(yy,m)).map(yy=>val(yy,m)); const v=val(y,m); return {rank:1+pool.filter(x=>x>v+1e-9).length, n:pool.length}; };
+  const cmpNorm=(v,nv)=> isT? `平年 ${sgn(v-nv,1)}℃` : `平年の約${fmt(v/nv*100,0)}%`;
+  const cmpPrev=(v,pv)=> isT? `前年同月 ${sgn(v-pv,1)}℃` : `前年同月 ${fmt(pv,0)}mm`;
+  // 最新の「確定した月」を探す
+  let ly=null,lm=null;
+  for(const y of years){ for(let m=12;m>=1;m--){ if(complete(y,m)){ ly=y; lm=m; break; } } if(ly) break; }
+  if(ly){
+    const v=val(ly,lm), pv=complete(ly-1,lm)?val(ly-1,lm):null, nv=hasNorm?normMonth(lm):null, rk=rankOf(ly,lm);
+    const parts=[]; if(pv!=null) parts.push(cmpPrev(v,pv)); if(nv!=null&&nv) parts.push(cmpNorm(v,nv));
+    let lv=""; if(rk.n>=10&&(rk.rank<=3||rk.rank>rk.n-3)) lv="warn";
+    it.push({t:`📆 ${ly}年${lm}月の${word}は <b>${fmt(v,dec)}${unit}</b>${parts.length?`（${parts.join("、")}）`:""}。${rk.n}年中、${isT?"高い":"多い"}方から <b>${rk.rank}位</b>です。`,lv});
+  }
+  // 途中の月
+  const y0=years[0];
+  for(let m=12;m>=1;m--){ const c=cnt(y0,m); if(c>0&&!complete(y0,m)){
+    const v=val(y0,m), nv=hasNorm?normMonth(m):null;
+    it.push({t:`⏳ ${y0}年${m}月はまだ途中（${c}日分）です。${isT&&nv!=null?`ここまでの平均は${fmt(v,1)}℃（平年 ${sgn(v-nv,1)}℃）。`:`ここまでの合計は${fmt(v,0)}mm。`}`,lv:"muted"}); break; } }
+  // 記録的な月（最新年）
+  if(ly){ const hi=[],lo=[];
+    for(let m=1;m<=12;m++){ if(!complete(ly,m)) continue; const rk=rankOf(ly,m); if(rk.n<10) continue; if(rk.rank===1) hi.push(m); else if(rk.rank===rk.n) lo.push(m); }
+    if(hi.length) it.push({t:`🏆 ${ly}年は <b>${hi.map(m=>m+"月").join("・")}</b> が、観測期間の中で最も${HI}月でした。`,lv:"warn"});
+    if(lo.length) it.push({t:`🏆 ${ly}年は <b>${lo.map(m=>m+"月").join("・")}</b> が、観測期間の中で最も${LO}月でした。`,lv:"warn"});
+    // 平年より高い/低い月の数
+    if(hasNorm){ const hiN=[],loN=[];
+      for(let m=1;m<=12;m++){ if(!complete(ly,m)) continue; const v=val(ly,m), nv=normMonth(m); if(nv==null||!nv) continue;
+        if(isT){ if(v-nv>=0.5) hiN.push(m); else if(v-nv<=-0.5) loN.push(m); } else { if(v/nv>=1.3) hiN.push(m); else if(v/nv<=0.7) loN.push(m); } }
+      it.push({t:`📊 ${ly}年の確定した月のうち、${isT?"平年より高温（+0.5℃以上）":"多雨（平年の130%以上）"}は <b>${hiN.length}か月</b>${hiN.length?`（${hiN.join("・")}月）`:""}、${isT?"低温（-0.5℃以下）":"少雨（平年の70%以下）"}は <b>${loN.length}か月</b>${loN.length?`（${loN.join("・")}月）`:""}。`}); }
+    // 前年同期（1月〜lm月）との比較
+    const ms=[]; for(let m=1;m<=lm;m++) if(complete(ly,m)&&complete(ly-1,m)) ms.push(m);
+    if(ms.length>=2){ const a=ms.map(m=>val(ly,m)), b=ms.map(m=>val(ly-1,m));
+      const va=isT?meanOf(a):sumOf(a), vb=isT?meanOf(b):sumOf(b);
+      it.push({t:`📅 ${ly}年${ms[0]}〜${ms[ms.length-1]}月の${mode==="temp"?"平均気温":isT?word.replace("（月平均）","")+"の平均":"降水量合計"}は ${fmt(va,dec)}${unit}で、前年同期（${fmt(vb,dec)}${unit}）より <b>${isT?sgn(va-vb,1)+"℃":sgn(va-vb,0)+"mm"}</b>。`}); }
+  }
+  // 長期傾向（12か月そろった年のみ）
+  const full=years.filter(y=>{ for(let m=1;m<=12;m++) if(!complete(y,m)) return false; return true; }).sort((a,b)=>a-b);
+  if(full.length>=10){
+    const ann=full.map(y=>{ const v=[]; for(let m=1;m<=12;m++) v.push(val(y,m)); return isT?meanOf(v):sumOf(v); });
+    const n=full.length, mx=meanOf(full), my=meanOf(ann);
+    let sxy=0,sxx=0; for(let i=0;i<n;i++){ sxy+=(full[i]-mx)*(ann[i]-my); sxx+=(full[i]-mx)**2; }
+    const slope=sxy/sxx*10;
+    const iMax=ann.indexOf(Math.max(...ann)), iMin=ann.indexOf(Math.min(...ann));
+    if(isT) it.push({t:`📈 ${full[0]}〜${full[n-1]}年（${n}年分）の年平均の${word.replace("（月平均）","")}は、10年あたり約 <b>${sgn(slope,2)}℃</b> のペースで${slope>=0?"上昇":"低下"}傾向です。最も${HI.replace("い","かった")}年は${full[iMax]}年（${fmt(ann[iMax],1)}℃）、最も${LO.replace("い","かった")}年は${full[iMin]}年（${fmt(ann[iMin],1)}℃）。`});
+    else it.push({t:`📈 ${full[0]}〜${full[n-1]}年（${n}年分）の年間降水量は、10年あたり約 <b>${sgn(slope,0)}mm</b> の${slope>=0?"増加":"減少"}傾向です。最も多かった年は${full[iMax]}年（${fmt(ann[iMax],0)}mm）、最も少なかった年は${full[iMin]}年（${fmt(ann[iMin],0)}mm）。`});
+  }
+  return it;
+}
+
+function renderMonthly(){
+  const wrap=document.getElementById("monthlyWrap");
+  const legend=document.getElementById("monthlyLegend");
+  try{
+  const station=UI.station;
+  if(!station){ wrap.innerHTML=`<div class="hint">データを読み込んでください。</div>`; legend.textContent=""; document.getElementById("monthlyInsight").innerHTML=""; return; }
+  const mode=UI.monthlyMode; // temp | tmax | tmin | rain
+  const K={temp:"temp",tmax:"tmax",tmin:"tmin",rain:"precip"}[mode]||"temp", isT=mode!=="rain";
+  const recs=DB.records[station]||{};
+  const dates=Object.keys(recs);
+  if(!dates.length){ wrap.innerHTML=`<div class="hint">この地点のデータがありません。</div>`; legend.textContent=""; return; }
+
+  // 年×月で集計（項目ごとに合計と日数）
+  const grid={}; let ymin=9999,ymax=0;
+  for(const d of dates){
+    const y=+d.slice(0,4), m=+d.slice(5,7);
+    ymin=Math.min(ymin,y); ymax=Math.max(ymax,y);
+    grid[y]=grid[y]||{};
+    const g=grid[y][m]=grid[y][m]||{s:{},c:{}};
+    const r=recs[d];
+    for(const k of ["temp","tmax","tmin","precip"]){ if(r[k]!=null){ g.s[k]=(g.s[k]||0)+r[k]; g.c[k]=(g.c[k]||0)+1; } }
+  }
+  const years=[]; for(let y=ymax;y>=ymin;y--) years.push(y);
+  const cntFn=g=> g&&g.c[K]||0;
+  const cellVal=g=> !g||!g.c[K]? null : (isT? g.s[K]/g.c[K] : g.s[K]);
+  if(!years.some(y=>{ for(let m=1;m<=12;m++) if(cntFn(grid[y]&&grid[y][m])) return true; return false; })){
+    wrap.innerHTML=`<div class="hint">この地点には${mode==="tmax"?"最高気温":"最低気温"}のデータがありません（気象庁からの自動取得データに含まれます）。</div>`; legend.textContent=""; document.getElementById("monthlyInsight").innerHTML=""; return; }
+
+  // カラースケール用の最小最大
+  const vals=[];
+  years.forEach(y=>{ for(let m=1;m<=12;m++){ const v=cellVal(grid[y]&&grid[y][m]); if(v!=null) vals.push(v); } });
+  const vmin=Math.min(...vals), vmax=Math.max(...vals), span=(vmax-vmin)||1;
+  const color=v=>{ if(v==null) return {bg:"#f8fafc",fg:"#cbd5e1"};
+    const t=(v-vmin)/span;
+    if(isT){ const hue=220-220*t; return {bg:`hsl(${hue},68%,${72-12*t}%)`, fg:t>0.55?"#fff":"#1f2937"}; }
+    const l=94-64*t; return {bg:`hsl(208,72%,${l}%)`, fg:l<52?"#fff":"#1f2937"};
+  };
+
+  // 平年値（月別）
+  const normals=DB.normals[station]||{};
+  const hasNorm=Object.keys(normals).length>0;
+  const normMonth=m=>{ let s=0,c=0; for(const md in normals){ if(+md.slice(0,2)===m){ const v=normals[md][K]; if(v!=null){ s+=v; c++; } } } return c? (isT? s/c : s) : null; };
+
+  const dec= isT?1:0;
+  const head="<tr><th>年＼月</th>"+Array.from({length:12},(_,i)=>`<th>${i+1}月</th>`).join("")+`<th>年${isT?"平均":"合計"}</th></tr>`;
+  const body=years.map(y=>{
+    const rowVals=[]; let cells="";
+    for(let m=1;m<=12;m++){ const v=cellVal(grid[y]&&grid[y][m]); if(v!=null)rowVals.push(v); const c=color(v);
+      cells+=`<td style="background:${c.bg};color:${c.fg}">${v==null?"":fmt(v,dec)}</td>`; }
+    const agg= isT ? (rowVals.length?rowVals.reduce((a,b)=>a+b,0)/rowVals.length:null)
+                             : rowVals.reduce((a,b)=>a+b,0);
+    return `<tr><th>${y}</th>${cells}<td>${rowVals.length?fmt(agg,dec):""}</td></tr>`;
+  }).join("");
+  let normRow="";
+  if(hasNorm){ let nc=""; let ntot=0,nhas=false;
+    for(let m=1;m<=12;m++){ const v=normMonth(m); if(v!=null&&mode==="rain"){ntot+=v;nhas=true;} nc+=`<td>${v==null?"":fmt(v,dec)}</td>`; }
+    normRow=`<tr class="normrow"><th>平年値</th>${nc}<td>${mode==="rain"&&nhas?fmt(ntot,0):""}</td></tr>`;
+  }
+  wrap.innerHTML=`<div class="scroll"><table class="heat">${head}${body}${normRow}</table></div>`;
+  document.getElementById("monthlyInsight").innerHTML=insightHTML(monthlyInsights(grid,years,mode,normMonth,hasNorm,cellVal,cntFn),"長期傾向は12か月そろった年だけで計算しています。");
+
+  const unit= isT?"℃":"mm";
+  const grad= isT
+    ? "linear-gradient(90deg,hsl(220,68%,72%),hsl(110,68%,66%),hsl(0,68%,60%))"
+    : "linear-gradient(90deg,hsl(208,72%,94%),hsl(208,72%,45%))";
+  legend.innerHTML=`低い ${fmt(vmin,dec)} <span class="legendbar" style="background:${grad}"></span> ${fmt(vmax,dec)} 高い（${unit}）`;
+  }catch(e){ wrap.innerHTML=`<div class="note">月別サマリーの表示でエラーが発生しました：${e.message}</div>`; console.error(e); }
+}
+
+/* ============================================================
+   ファイル読込 & イベント
+   ============================================================ */
+function readFileAsShiftJis(file){
+  return new Promise((res,rej)=>{
+    const r=new FileReader();
+    r.onload=()=>{ try{ const dec=new TextDecoder("shift-jis"); res(dec.decode(r.result)); }catch(e){ rej(e); } };
+    r.onerror=()=>rej(r.error); r.readAsArrayBuffer(file);
+  });
+}
+
+async function handleFiles(files){
+  const msg=document.getElementById("loadMsg");
+  const list=[...files].filter(f=>/\.csv$/i.test(f.name));
+  if(!list.length){ msg.innerHTML=`<span style="color:#b91c1c">CSVファイルが見つかりません。</span>`; return; }
+  msg.innerHTML="読み込み中…";
+  let ok=0,fail=0,totAdd=0,totUpd=0; const errs=[];
+  for(const f of list){
+    try{ const text=await readFileAsShiftJis(f); const parsed=parseJmaCsv(text);
+      const {added,updated}=mergeParsed(DB,parsed,f.name); totAdd+=added; totUpd+=updated; ok++;
+    }catch(e){ fail++; errs.push(`${f.name}: ${e.message}`); }
+  }
+  const saved=saveDB(DB);
+  let note="";
+  if(ok>0 && totAdd===0 && totUpd===0) note=`<div class="note">このCSVからは新しい日次データが読み取れませんでした。気象庁の「日別値（平均気温／降水量の合計）」のCSVか、中身をご確認ください。</div>`;
+  else if(ok>0 && totAdd===0) note=`<div class="hint" style="margin-top:4px">今回のデータはすべて取り込み済みでした（日付の範囲は変わっていません）。</div>`;
+  else if(totAdd>0) note=`<div class="hint" style="margin-top:4px">新しい日付を追加しました。</div>`;
+  if(!saved) note+=`<div class="note">⚠ ブラウザへの保存に失敗しました（容量オーバーの可能性）。「書き出す」でファイル保存してください。</div>`;
+  msg.innerHTML=`<span style="color:#16a34a">✔ ${ok}ファイル読込完了</span>（新規${totAdd.toLocaleString()}日 / 更新${totUpd.toLocaleString()}日）${fail?`<br><span style="color:#b91c1c">${fail}件失敗：<br>${errs.join("<br>")}</span>`:""}${note}
+    <div class="hint" style="margin-top:6px">現在の収録範囲：<br>${coverageSummary()}</div>`;
+  UI.station=null; renderAll();
+}
+
+// 収録範囲の要約（地点別）
+function coverageSummary(){
+  if(!DB.stations.length) return "（データなし）";
+  return DB.stations.map(s=>{ const mm=dataMinMax(s); const cnt=Object.keys(DB.records[s]||{}).length;
+    return `・${s}：${mm?`${mm.min} 〜 ${mm.max}`:"データなし"}（${cnt.toLocaleString()}日）`; }).join("<br>");
+}
+
+// データの書き出し（バックアップ）
+function exportData(){
+  if(!DB.stations.length){ alert("書き出すデータがありません。"); return; }
+  const blob=new Blob([JSON.stringify(DB)],{type:"application/json"});
+  const url=URL.createObjectURL(blob);
+  const d=new Date(); const stamp=`${d.getFullYear()}${String(d.getMonth()+1).padStart(2,"0")}${String(d.getDate()).padStart(2,"0")}`;
+  const a=document.createElement("a");
+  a.href=url; a.download=`気象データバックアップ_${stamp}.json`;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url),1000);
+}
+
+// バックアップの読み込み（現在のデータへマージ）
+async function importData(file){
+  const msg=document.getElementById("loadMsg");
+  try{
+    const text=await file.text();
+    const obj=JSON.parse(text);
+    if(!obj||!obj.records||!obj.stations) throw new Error("バックアップファイルの形式ではありません");
+    const {added,updated}=mergeParsed(DB,{stations:obj.stations,records:obj.records,normals:obj.normals||{}},"バックアップ:"+file.name);
+    const saved=saveDB(DB);
+    msg.innerHTML=`<span style="color:#16a34a">✔ バックアップを読み込みました</span>（新規${added.toLocaleString()}日 / 更新${updated.toLocaleString()}日）${saved?"":`<div class="note">⚠ 保存に失敗しました（容量オーバーの可能性）。</div>`}
+      <div class="hint" style="margin-top:6px">現在の収録範囲：<br>${coverageSummary()}</div>`;
+    UI.station=null; renderAll();
+  }catch(e){ msg.innerHTML=`<span style="color:#b91c1c">読み込みに失敗しました：${e.message}</span>`; }
+}
+
+function switchTab(tab){
+  UI.tab=tab;
+  document.querySelectorAll("#tabs button").forEach(b=>b.classList.toggle("active",b.dataset.tab===tab));
+  document.querySelectorAll(".tabpane").forEach(p=>p.classList.toggle("hidden",p.id!=="pane-"+tab));
+  document.getElementById("globalControls").style.display = (tab==="data")?"none":"flex";
+  renderAll();
+}
+
+function wire(){
+  // タブ
+  document.querySelectorAll("#tabs button").forEach(b=>b.onclick=()=>switchTab(b.dataset.tab));
+  // 共通コントロール
+  document.getElementById("stationSel").onchange=e=>{UI.station=e.target.value; renderAll();};
+  document.getElementById("startMonth").onchange=e=>{ UI.startMM=e.target.value; fillDaySelect(); renderAll(); };
+  document.getElementById("startDay").onchange=e=>{ UI.startDay=e.target.value; renderAll(); };
+  // 開始日プリセット
+  document.querySelectorAll("#startPresets button").forEach(b=>b.onclick=()=>{
+    if(b.dataset.today!==undefined){ const t=new Date(); UI.startMM=String(t.getMonth()+1).padStart(2,"0"); UI.startDay=String(t.getDate()).padStart(2,"0"); }
+    else { UI.startDay=b.dataset.day; } // 月はそのまま、日だけ変更
+    renderAll();
+  });
+  // 表示年フィルタ
+  document.getElementById("yearBtn").onclick=()=>{ const p=document.getElementById("yearPanel"); p.classList.toggle("hidden"); if(!p.classList.contains("hidden")) renderYearPanel(); };
+  document.querySelectorAll("#yearPanel button[data-preset]").forEach(b=>b.onclick=()=>applyPreset(b.dataset.preset));
+  // ドロップ
+  const drop=document.getElementById("drop"), fi=document.getElementById("fileInput");
+  drop.onclick=()=>fi.click();
+  fi.onchange=()=>{ if(fi.files.length) handleFiles(fi.files); fi.value=""; };
+  ["dragover","dragenter"].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.add("hot");}));
+  ["dragleave","drop"].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.remove("hot");}));
+  drop.addEventListener("drop",e=>{ if(e.dataTransfer.files.length) handleFiles(e.dataTransfer.files); });
+  // 書き出し／読み込み（バックアップ）
+  document.getElementById("exportBtn").onclick=()=>exportData();
+  const impIn=document.getElementById("importInput");
+  document.getElementById("importBtn").onclick=()=>impIn.click();
+  impIn.onchange=()=>{ if(impIn.files.length) importData(impIn.files[0]); impIn.value=""; };
+  // 全消去
+  document.getElementById("clearBtn").onclick=()=>{ if(confirm("保存されている気象データを全て消去します。よろしいですか？")){ localStorage.removeItem(LS_KEY); DB=emptyDB(); UI.station=null; renderAll(); document.getElementById("loadMsg").innerHTML="データを消去しました。"; } };
+  // 積算温度
+  document.querySelectorAll("#tempMode button").forEach(b=>b.onclick=()=>{ UI.tempMode=b.dataset.m; document.querySelectorAll("#tempMode button").forEach(x=>x.classList.toggle("on",x===b)); renderTemp(); });
+  document.getElementById("baseTemp").oninput=()=>renderTemp();
+  document.getElementById("tempDays").oninput=()=>renderTemp();
+  // 降水量
+  document.getElementById("rainDays").oninput=()=>renderRain();
+  // 類似年
+  document.getElementById("wTemp").oninput=()=>renderSimilar();
+  // 見通し
+  document.getElementById("nAnalog").oninput=()=>renderOutlook();
+  document.querySelectorAll("#aheadSeg button").forEach(b=>b.onclick=()=>{ UI.ahead=+b.dataset.d; document.querySelectorAll("#aheadSeg button").forEach(x=>x.classList.toggle("on",x===b)); renderOutlook(); });
+  // 月別サマリー
+  document.querySelectorAll("#monthlyMode button").forEach(b=>b.onclick=()=>{ UI.monthlyMode=b.dataset.m; document.querySelectorAll("#monthlyMode button").forEach(x=>x.classList.toggle("on",x===b)); renderMonthly(); });
+  // リサイズ再描画
+  let rt; window.addEventListener("resize",()=>{ clearTimeout(rt); rt=setTimeout(()=>{ if(UI.tab!=="data") renderAll(); },200); });
+}
+
+/* ---------- 自動取得データ（weather_data.js）の取り込み ---------- */
+const AUTO_INFO=(function(){
+  const A=window.WEATHER_AUTO; if(!A) return null;
+  try{
+    const r=mergeParsed(DB,{stations:A.stations,records:A.records,normals:A.normals||{}},"自動取得（気象庁HP）");
+    return {generatedAt:A.generatedAt, source:A.source, added:r.added, saved:saveDB(DB,true)};
+  }catch(e){ return {error:e.message}; }
+})();
+function renderAutoStatus(){
+  const el=document.getElementById("autoStatus"); if(!el) return;
+  const isWeb=/^https?:$/.test(location.protocol); // 公開版（GitHub Pages）か、PC・共有フォルダ版か
+  if(!AUTO_INFO){ el.innerHTML=`<div class="hint">🔄 自動取得：${isWeb?"データファイル（weather_data.js）を読み込めませんでした。時間をおいて開き直してください。":"未設定です（HTMLと同じフォルダに weather_data.js がありません）。「気象データ自動取得」フォルダの「今すぐ取得.bat」を実行すると作成されます。"}</div>`; return; }
+  if(AUTO_INFO.error){ el.innerHTML=`<div class="note">🔄 自動取得データの読み込みに失敗しました：${AUTO_INFO.error}</div>`; return; }
+  const g=new Date(AUTO_INFO.generatedAt), age=Math.floor((Date.now()-g)/86400000), warn=age>=2;
+  const stop=isWeb?"自動更新が止まっている可能性があります（管理者：GitHubの「Actions」を確認してください）":"PCが起動していなかったか、自動取得が止まっている可能性があります。「今すぐ取得.bat」を実行してください";
+  el.innerHTML=`<div class="${warn?"note":"insight"}" style="margin:0">
+    <div class="ttl">🔄 気象庁から自動取得したデータを読み込みました</div>
+    <div style="font-size:13px">最終取得：${g.toLocaleString("ja-JP")}${warn?`（<b>${age}日前</b>から更新されていません。${stop}）`:""}<br>
+    出典：${AUTO_INFO.source||"気象庁ホームページ"}（このツールで加工して作成）${AUTO_INFO.saved?"":"<br>⚠ ブラウザへの保存に失敗しました（容量不足）。表示には問題ありません。"}<br>
+    <span class="hint">※ ${isWeb?"毎朝9時ごろに自動で更新されます。ページを開き直すと最新になります。":"HTMLを開き直すと最新の取得データが反映されます。CSVの手動投入も引き続き使えます。"}</span></div></div>`;
+}
+
+/* ---------- 公開版（GitHub Pages）で開いたときは説明文を差し替え ---------- */
+if(/^https?:$/.test(location.protocol)){
+  const f=document.querySelector(".foot"); if(f) f.textContent="気象データ分析ツール（公開版・毎朝9時ごろ自動更新） / 画面の設定はお使いの端末のブラウザ内にのみ保存されます";
+  const d=document.querySelector("#pane-data .desc"); if(d) d.textContent="気象庁のデータは毎朝9時ごろ自動で取得・更新され、このページを開くと読み込まれます（下の枠に状態を表示）。";
+  document.querySelectorAll("#pane-data .note").forEach(n=>{ n.innerHTML=n.innerHTML.replace("インターネット接続も不要です。","（気象データの読み込みのみインターネットを使います）"); });
+}
+wire();
+switchTab("data");
+</script>
+</body>
+</html>
