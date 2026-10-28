@@ -681,7 +681,9 @@ const SIM_COLORS=["#2563eb","#059669","#7c3aed","#d97706","#0891b2"];
 /* ============================================================
    状態 & UI
    ============================================================ */
-const UI={ station:null, startMM:"01", startDay:"01", tab:"data",
+// 開始日の初期値＝データの最終日（前日）がある月の1日（例：10/28に開けば10月1日、毎月1日は前月1日）
+const DEFAULT_MM=String(new Date(Date.now()-86400000).getMonth()+1).padStart(2,"0");
+const UI={ station:null, startMM:DEFAULT_MM, startDay:"01", tab:"data",
   tempMode:"simple", ahead:30, selectedYears:null, monthlyMode:"temp" };
 // UI.startDate は月日から算出（年は表示用の便宜で閏年2024固定）
 Object.defineProperty(UI,"startDate",{ get(){ return `2024-${UI.startMM}-${UI.startDay}`; } });
@@ -1153,7 +1155,7 @@ function computeSimilarity(station, startMMDD, wTemp){
   const curYear=currentSeasonYear(startMMDD);
   const curArr=seasonArray(station,curYear,startMMDD,horizon);
   const elapsed=lastFilledOffset(curArr);
-  if(elapsed<5) return {curYear,elapsed,results:[],error:"今年のデータが不足しています"};
+  if(elapsed<5) return {curYear,elapsed,results:[],error:`開始日からのデータが${elapsed+1}日分しかないため、似ている年を判定できません。開始日をもっと前（前の月など）にしてください。`};
 
   const years=seasonYears(station,startMMDD).filter(y=>y<curYear);
   const raw=[];
