@@ -149,7 +149,10 @@
   <div class="controls" id="globalControls">
     <div class="field">
       <label>地点</label>
-      <select id="stationSel"></select>
+      <div class="ddwrap">
+        <select id="stationSel"></select>
+        <button class="btn ghost sm" id="stBtn">地点の追加・変更</button>
+      </div>
     </div>
     <div class="field" id="startField">
       <label>開始日（この月日から積算・比較）</label>
@@ -175,6 +178,24 @@
       <label>&nbsp;</label>
       <span class="hint" id="dataRange">データ未読込</span>
     </div>
+  </div>
+
+  <!-- 地点の追加・変更 -->
+  <div class="popover hidden" id="stPanel">
+    <div class="ttl">表示する地点を選ぶ</div>
+    <div class="presetrow">
+      <button class="btn sm" id="geoBtn">📍 現在地から近い地点を探す</button>
+      <input type="search" id="stSearch" placeholder="地点名・県名で検索（例：前橋、長野県）" style="flex:1;min-width:180px;padding:6px 9px;border:1px solid var(--line);border-radius:7px;font-size:13px">
+    </div>
+    <div id="geoResult" style="margin-top:8px"></div>
+    <div id="stSearchResult" style="margin-top:6px"></div>
+    <div class="ttl" style="margin-top:12px">選択中の地点</div>
+    <div id="myStList"></div>
+    <div class="presetrow" style="margin-top:10px">
+      <button class="btn ghost sm" id="stLinkBtn">🔗 この地点の組み合わせのリンクをコピー</button>
+      <span class="hint" id="stLinkMsg"></span>
+    </div>
+    <div class="hint" style="margin-top:8px">選んだ地点はこの端末に保存されます。一覧にない地点（「未登録」）は、管理者に追加を依頼してください。位置情報はこの端末の中だけで使い、送信しません。</div>
   </div>
 
   <!-- 表示年フィルタ（積算タブ用） -->
@@ -329,7 +350,7 @@
 
 <div class="foot">気象データ分析ツール（単一HTML・完全オフライン動作） / データはお使いのブラウザ内にのみ保存されます</div>
 
-<script src="weather_data.js"></script>
+<script src="stations.js"></script>
 <script>
 "use strict";
 /* ============================================================
@@ -376,7 +397,9 @@ function saveDB(db,quiet){
   }catch(e){ if(!quiet) alert("保存に失敗しました（データ量が大きすぎる可能性）。\n"+e.message); return false; }
 }
 
-let DB = loadDB();
+// USERDB = 手動で入れたCSV・バックアップ（ブラウザに保存）／ DB = USERDB＋自動取得データ（表示用・保存しない）
+let USERDB = loadDB();
+let DB = JSON.parse(JSON.stringify(USERDB));
 
 /* ---------- CSVパーサ（気象庁フォーマット・堅牢） ---------- */
 function toNum(v){ if(v==null) return null; const t=String(v).trim(); if(t==="") return null; const n=parseFloat(t); return isNaN(n)?null:n; }
@@ -675,8 +698,16 @@ function fillDaySelect(){
 
 function initControls(){
   const sel=document.getElementById("stationSel");
-  sel.innerHTML=DB.stations.map(s=>`<option>${s}</option>`).join("");
-  if(DB.stations.length){ if(!UI.station||!DB.stations.includes(UI.station)) UI.station=DB.stations[0]; sel.value=UI.station; }
+  // 地点の選択肢：自分で選んだ地点（地点一覧がある場合）＋手動で入れたCSVの地点
+  let opts;
+  if(ST){
+    opts=UI.myStations.map(l=>{ const r=regByLabel[l]; return {v:l, t:r&&!r.last?`${l}（準備中）`:l, ok:!!DB.records[l]}; });
+    DB.stations.filter(s=>!regByLabel[s]).forEach(s=>opts.push({v:s,t:`${s}（手動CSV）`,ok:true}));
+  } else opts=DB.stations.map(s=>({v:s,t:s,ok:true}));
+  sel.innerHTML=opts.map(o=>`<option value="${o.v}" ${o.ok?"":"disabled"}>${o.t}</option>`).join("");
+  const okList=opts.filter(o=>o.ok).map(o=>o.v);
+  if(!UI.station||!okList.includes(UI.station)) UI.station=okList[0]||null;
+  if(UI.station) sel.value=UI.station;
   // 月・日プルダウン
   const mon=document.getElementById("startMonth");
   if(!mon.options.length){ let o=""; for(let m=1;m<=12;m++){ const v=String(m).padStart(2,"0"); o+=`<option value="${v}">${m}</option>`; } mon.innerHTML=o; }
@@ -684,7 +715,8 @@ function initControls(){
   fillDaySelect();
   // データ範囲表示
   const rng=document.getElementById("dataRange");
-  if(DB.stations.length){ const mm=dataMinMax(UI.station); rng.textContent=mm?`${UI.station}：${mm.min} 〜 ${mm.max}`:"（この地点のデータなし）"; }
+  if(UI.loading) rng.textContent="データを読み込んでいます…";
+  else if(UI.station&&DB.records[UI.station]){ const mm=dataMinMax(UI.station); rng.textContent=mm?`${UI.station}：${mm.min} 〜 ${mm.max}`:"（この地点のデータなし）"; }
   else rng.textContent="データ未読込";
   // 年フィルタUIの表示可否（積算タブのみ）
   document.getElementById("yearField").style.display=(UI.tab==="temp"||UI.tab==="rain")?"flex":"none";
@@ -1422,10 +1454,10 @@ async function handleFiles(files){
   let ok=0,fail=0,totAdd=0,totUpd=0; const errs=[];
   for(const f of list){
     try{ const text=await readFileAsShiftJis(f); const parsed=parseJmaCsv(text);
-      const {added,updated}=mergeParsed(DB,parsed,f.name); totAdd+=added; totUpd+=updated; ok++;
+      const {added,updated}=mergeParsed(DB,parsed,f.name); mergeParsed(USERDB,parsed,f.name); totAdd+=added; totUpd+=updated; ok++;
     }catch(e){ fail++; errs.push(`${f.name}: ${e.message}`); }
   }
-  const saved=saveDB(DB);
+  const saved=saveDB(USERDB);
   let note="";
   if(ok>0 && totAdd===0 && totUpd===0) note=`<div class="note">このCSVからは新しい日次データが読み取れませんでした。気象庁の「日別値（平均気温／降水量の合計）」のCSVか、中身をご確認ください。</div>`;
   else if(ok>0 && totAdd===0) note=`<div class="hint" style="margin-top:4px">今回のデータはすべて取り込み済みでした（日付の範囲は変わっていません）。</div>`;
@@ -1462,8 +1494,9 @@ async function importData(file){
     const text=await file.text();
     const obj=JSON.parse(text);
     if(!obj||!obj.records||!obj.stations) throw new Error("バックアップファイルの形式ではありません");
-    const {added,updated}=mergeParsed(DB,{stations:obj.stations,records:obj.records,normals:obj.normals||{}},"バックアップ:"+file.name);
-    const saved=saveDB(DB);
+    const bk={stations:obj.stations,records:obj.records,normals:obj.normals||{}};
+    const {added,updated}=mergeParsed(DB,bk,"バックアップ:"+file.name); mergeParsed(USERDB,bk,"バックアップ:"+file.name);
+    const saved=saveDB(USERDB);
     msg.innerHTML=`<span style="color:#16a34a">✔ バックアップを読み込みました</span>（新規${added.toLocaleString()}日 / 更新${updated.toLocaleString()}日）${saved?"":`<div class="note">⚠ 保存に失敗しました（容量オーバーの可能性）。</div>`}
       <div class="hint" style="margin-top:6px">現在の収録範囲：<br>${coverageSummary()}</div>`;
     UI.station=null; renderAll();
@@ -1475,6 +1508,7 @@ function switchTab(tab){
   document.querySelectorAll("#tabs button").forEach(b=>b.classList.toggle("active",b.dataset.tab===tab));
   document.querySelectorAll(".tabpane").forEach(p=>p.classList.toggle("hidden",p.id!=="pane-"+tab));
   document.getElementById("globalControls").style.display = (tab==="data")?"none":"flex";
+  if(tab==="data") document.getElementById("stPanel").classList.add("hidden");
   renderAll();
 }
 
@@ -1483,6 +1517,12 @@ function wire(){
   document.querySelectorAll("#tabs button").forEach(b=>b.onclick=()=>switchTab(b.dataset.tab));
   // 共通コントロール
   document.getElementById("stationSel").onchange=e=>{UI.station=e.target.value; renderAll();};
+  // 地点の追加・変更パネル
+  document.getElementById("stBtn").onclick=()=>{ const p=document.getElementById("stPanel"); p.classList.toggle("hidden"); if(!p.classList.contains("hidden")) renderStPanel(); };
+  document.getElementById("geoBtn").onclick=()=>findNearby();
+  document.getElementById("stSearch").oninput=()=>renderStPanel();
+  document.getElementById("stLinkBtn").onclick=()=>copyStationLink();
+  if(!ST) document.getElementById("stBtn").style.display="none";
   document.getElementById("startMonth").onchange=e=>{ UI.startMM=e.target.value; fillDaySelect(); renderAll(); };
   document.getElementById("startDay").onchange=e=>{ UI.startDay=e.target.value; renderAll(); };
   // 開始日プリセット
@@ -1507,7 +1547,7 @@ function wire(){
   document.getElementById("importBtn").onclick=()=>impIn.click();
   impIn.onchange=()=>{ if(impIn.files.length) importData(impIn.files[0]); impIn.value=""; };
   // 全消去
-  document.getElementById("clearBtn").onclick=()=>{ if(confirm("保存されている気象データを全て消去します。よろしいですか？")){ localStorage.removeItem(LS_KEY); DB=emptyDB(); UI.station=null; renderAll(); document.getElementById("loadMsg").innerHTML="データを消去しました。"; } };
+  document.getElementById("clearBtn").onclick=()=>{ if(confirm("保存されている気象データを全て消去します。よろしいですか？")){ localStorage.removeItem(LS_KEY); USERDB=emptyDB(); DB=emptyDB(); LOADED.clear(); UI.station=null; ensureLoaded(UI.myStations).then(renderAll); document.getElementById("loadMsg").innerHTML="手動で入れたデータを消去しました（自動取得データは引き続き表示されます）。"; } };
   // 積算温度
   document.querySelectorAll("#tempMode button").forEach(b=>b.onclick=()=>{ UI.tempMode=b.dataset.m; document.querySelectorAll("#tempMode button").forEach(x=>x.classList.toggle("on",x===b)); renderTemp(); });
   document.getElementById("baseTemp").oninput=()=>renderTemp();
@@ -1525,26 +1565,124 @@ function wire(){
   let rt; window.addEventListener("resize",()=>{ clearTimeout(rt); rt=setTimeout(()=>{ if(UI.tab!=="data") renderAll(); },200); });
 }
 
-/* ---------- 自動取得データ（weather_data.js）の取り込み ---------- */
-const AUTO_INFO=(function(){
-  const A=window.WEATHER_AUTO; if(!A) return null;
-  try{
-    const r=mergeParsed(DB,{stations:A.stations,records:A.records,normals:A.normals||{}},"自動取得（気象庁HP）");
-    return {generatedAt:A.generatedAt, source:A.source, added:r.added, saved:saveDB(DB,true)};
-  }catch(e){ return {error:e.message}; }
-})();
+/* ============================================================
+   地点の管理（stations.js ＝ 取得済み地点＋全国の地点一覧、data/<地点番号>.js ＝ 地点ごとのデータ）
+   ============================================================ */
+const ST=window.WEATHER_STATIONS||null;
+const REG=ST? ST.registered : [];                 // データを取っている地点
+const MASTER=ST? ST.master : [];                  // 全国の気温観測地点（現在地検索・検索用）
+const regByLabel=Object.fromEntries(REG.map(r=>[r.label,r]));
+const DEFAULT_ST=["沼田","菊川牧之原","酸ケ湯","黒石"];
+const MYST_KEY="weatherMyStations:v1";
+const LOADED=new Set(), LOAD_ERR=[];
+UI.myStations=[]; UI.loading=false;
+
+function initMyStations(){
+  const q=new URLSearchParams(location.search).get("st");
+  let arr=null;
+  if(q) arr=q.split(",").map(s=>s.trim()).filter(Boolean);                 // 専用リンク（?st=地点,地点）
+  else { try{ arr=JSON.parse(localStorage.getItem(MYST_KEY)||"null"); }catch(e){} }
+  if(!Array.isArray(arr)||!arr.length) arr=DEFAULT_ST;
+  arr=arr.filter(l=>regByLabel[l]);
+  if(!arr.length) arr=REG.filter(r=>r.last).slice(0,4).map(r=>r.label);
+  UI.myStations=arr; if(q) saveMyStations();
+}
+function saveMyStations(){ try{ localStorage.setItem(MYST_KEY,JSON.stringify(UI.myStations)); }catch(e){} }
+function loadScript(src){ return new Promise((res,rej)=>{ const s=document.createElement("script"); s.src=src; s.onload=res; s.onerror=()=>rej(new Error(src)); document.head.appendChild(s); }); }
+// 選んだ地点のデータを読み込んで表示用DBに合流（保存はしない）
+async function ensureLoaded(labels){
+  const todo=labels.map(l=>regByLabel[l]).filter(r=>r&&r.last&&!LOADED.has(r.block));
+  if(!todo.length) return;
+  UI.loading=true; initControls();
+  await Promise.all(todo.map(async r=>{
+    try{
+      await loadScript(`data/${r.block}.js?v=${encodeURIComponent(ST.generatedAt)}`);
+      const d=(window.WEATHER_DATA||{})[r.block];
+      if(d){ mergeParsed(DB,{stations:[r.label],records:{[r.label]:d.records},normals:{[r.label]:d.normals||{}}},"自動取得（気象庁HP）"); LOADED.add(r.block); delete window.WEATHER_DATA[r.block]; }
+    }catch(e){ if(!LOAD_ERR.includes(r.label)) LOAD_ERR.push(r.label); }
+  }));
+  UI.loading=false;
+}
+// 旧形式（weather_data.js）がある古い環境向けの互換処理
+if(window.WEATHER_AUTO){ const A=window.WEATHER_AUTO; try{ mergeParsed(DB,{stations:A.stations,records:A.records,normals:A.normals||{}},"自動取得（気象庁HP）"); }catch(e){} }
+
+function kmBetween(a,b){ const R=6371,r=Math.PI/180,dLa=(b.lat-a.lat)*r,dLo=(b.lon-a.lon)*r; const h=Math.sin(dLa/2)**2+Math.cos(a.lat*r)*Math.cos(b.lat*r)*Math.sin(dLo/2)**2; return 2*R*Math.asin(Math.sqrt(h)); }
+function stName(r){ return `${r.label}<span class="hint">（${r.pref}）</span>`; }
+async function addMyStation(label){
+  if(!regByLabel[label]||UI.myStations.includes(label)) return;
+  UI.myStations.push(label); saveMyStations();
+  await ensureLoaded([label]);
+  if(regByLabel[label].last) UI.station=label;
+  renderAll(); renderStPanel();
+}
+function removeMyStation(label){
+  if(UI.myStations.length<=1){ alert("地点は1つ以上選んでください。"); return; }
+  UI.myStations=UI.myStations.filter(l=>l!==label); saveMyStations();
+  if(UI.station===label) UI.station=null;
+  renderAll(); renderStPanel();
+}
+function stOptionButton(r){
+  if(UI.myStations.includes(r.label)) return `<span class="badge" style="background:#ecfdf5;color:#047857">✓ ${r.label}（${r.pref}）</span>`;
+  if(!r.last) return `<button class="btn ghost sm" data-add="${r.label}" title="過去データを準備中です">＋ ${r.label}（${r.pref}・準備中）</button>`;
+  return `<button class="btn ghost sm" data-add="${r.label}">＋ ${r.label}（${r.pref}）</button>`;
+}
+function bindAddButtons(el){ el.querySelectorAll("[data-add]").forEach(b=>b.onclick=()=>addMyStation(b.dataset.add)); }
+function renderStPanel(){
+  const my=document.getElementById("myStList");
+  my.innerHTML=UI.myStations.map(l=>{ const r=regByLabel[l];
+    return `<span class="badge" style="padding:4px 6px 4px 10px">${l}${r&&!r.last?"（準備中）":""}${LOAD_ERR.includes(l)?"（読込失敗）":""} <button data-del="${l}" style="border:none;background:none;cursor:pointer;color:#b91c1c;font-size:13px" aria-label="${l}を外す">✕</button></span>`; }).join("");
+  my.querySelectorAll("[data-del]").forEach(b=>b.onclick=()=>removeMyStation(b.dataset.del));
+  // 検索
+  const q=(document.getElementById("stSearch").value||"").trim();
+  const sr=document.getElementById("stSearchResult");
+  if(!q){ sr.innerHTML=`<div class="hint">登録済みの地点（${REG.length}地点）：</div><div class="presetrow" style="margin-top:4px">${REG.map(stOptionButton).join("")}</div>`; }
+  else {
+    const hit=REG.filter(r=>(r.label+r.pref).includes(q));
+    const un=MASTER.filter(m=>!regByLabel[m.label]&&(m.label+m.pref).includes(q)).slice(0,8);
+    sr.innerHTML=`<div class="presetrow">${hit.map(stOptionButton).join("")||'<span class="hint">登録済みの地点には見つかりません。</span>'}</div>`
+      +(un.length?`<div class="hint" style="margin-top:6px">未登録（追加は管理者に依頼）：${un.map(m=>`${m.label}（${m.pref}）`).join("、")}</div>`:"");
+  }
+  bindAddButtons(sr);
+}
+function findNearby(){
+  const out=document.getElementById("geoResult");
+  if(!navigator.geolocation){ out.innerHTML=`<div class="hint">この端末・ブラウザでは位置情報を使えません。地点名で検索してください。</div>`; return; }
+  out.innerHTML=`<div class="hint">現在地を確認しています…（位置情報の利用を許可してください）</div>`;
+  navigator.geolocation.getCurrentPosition(pos=>{
+    const me={lat:pos.coords.latitude,lon:pos.coords.longitude};
+    const near=REG.map(r=>({r,d:kmBetween(me,r)})).sort((a,b)=>a.d-b.d).slice(0,5);
+    const mNear=MASTER.map(m=>({m,d:kmBetween(me,m)})).sort((a,b)=>a.d-b.d)[0];
+    let note="";
+    if(mNear&&!regByLabel[mNear.m.label]&&near.length&&mNear.d<near[0].d-5)
+      note=`<div class="hint" style="margin-top:6px">※ いちばん近いアメダスは <b>${mNear.m.label}（${mNear.m.pref}・約${mNear.d.toFixed(0)}km）</b> ですが未登録です。必要なら管理者に追加を依頼してください。</div>`;
+    out.innerHTML=`<div class="hint">現在地から近い登録地点：</div><div class="presetrow" style="margin-top:4px">${near.map(x=>stOptionButton(x.r).replace(/（([^）]*)）(<\/button>|<\/span>)$/,`（$1・約${x.d.toFixed(0)}km）$2`)).join("")}</div>${note}`;
+    bindAddButtons(out);
+  }, err=>{
+    out.innerHTML=`<div class="hint">現在地を取得できませんでした（${err.code===1?"位置情報の利用が許可されていません":"取得に失敗しました"}）。地点名で検索してください。</div>`;
+  }, {enableHighAccuracy:false, timeout:10000, maximumAge:600000});
+}
+function copyStationLink(){
+  const url=location.href.split(/[?#]/)[0]+"?st="+UI.myStations.map(encodeURIComponent).join(",");
+  const msg=document.getElementById("stLinkMsg");
+  const done=()=>{ msg.textContent="コピーしました。LINEなどに貼り付けて送れます。"; };
+  if(navigator.clipboard&&window.isSecureContext) navigator.clipboard.writeText(url).then(done,()=>{ prompt("このリンクをコピーしてください",url); });
+  else prompt("このリンクをコピーしてください",url);
+}
+
 function renderAutoStatus(){
   const el=document.getElementById("autoStatus"); if(!el) return;
   const isWeb=/^https?:$/.test(location.protocol); // 公開版（GitHub Pages）か、PC・共有フォルダ版か
-  if(!AUTO_INFO){ el.innerHTML=`<div class="hint">🔄 自動取得：${isWeb?"データファイル（weather_data.js）を読み込めませんでした。時間をおいて開き直してください。":"未設定です（HTMLと同じフォルダに weather_data.js がありません）。「気象データ自動取得」フォルダの「今すぐ取得.bat」を実行すると作成されます。"}</div>`; return; }
-  if(AUTO_INFO.error){ el.innerHTML=`<div class="note">🔄 自動取得データの読み込みに失敗しました：${AUTO_INFO.error}</div>`; return; }
-  const g=new Date(AUTO_INFO.generatedAt), age=Math.floor((Date.now()-g)/86400000), warn=age>=2;
+  const gen=ST? ST.generatedAt : (window.WEATHER_AUTO&&window.WEATHER_AUTO.generatedAt);
+  if(!gen){ el.innerHTML=`<div class="hint">🔄 自動取得：${isWeb?"地点一覧（stations.js）を読み込めませんでした。時間をおいて開き直してください。":"未設定です（HTMLと同じフォルダに stations.js がありません）。「気象データ自動取得」フォルダの「今すぐ取得.bat」を実行すると作成されます。"}</div>`; return; }
+  const g=new Date(gen), age=Math.floor((Date.now()-g)/86400000), warn=age>=2;
   const stop=isWeb?"自動更新が止まっている可能性があります（管理者：GitHubの「Actions」を確認してください）":"PCが起動していなかったか、自動取得が止まっている可能性があります。「今すぐ取得.bat」を実行してください";
-  el.innerHTML=`<div class="${warn?"note":"insight"}" style="margin:0">
-    <div class="ttl">🔄 気象庁から自動取得したデータを読み込みました</div>
+  const pending=REG.filter(r=>!r.last).map(r=>r.label);
+  el.innerHTML=`<div class="${warn||LOAD_ERR.length?"note":"insight"}" style="margin:0">
+    <div class="ttl">🔄 気象庁から自動取得したデータを使っています</div>
     <div style="font-size:13px">最終取得：${g.toLocaleString("ja-JP")}${warn?`（<b>${age}日前</b>から更新されていません。${stop}）`:""}<br>
-    出典：${AUTO_INFO.source||"気象庁ホームページ"}（このツールで加工して作成）${AUTO_INFO.saved?"":"<br>⚠ ブラウザへの保存に失敗しました（容量不足）。表示には問題ありません。"}<br>
-    <span class="hint">※ ${isWeb?"毎朝9時ごろに自動で更新されます。ページを開き直すと最新になります。":"HTMLを開き直すと最新の取得データが反映されます。CSVの手動投入も引き続き使えます。"}</span></div></div>`;
+    登録地点：${REG.length}地点${pending.length?`（うち準備中：${pending.join("・")}。過去30年分を順に取得中です）`:""}／表示中：${UI.myStations.join("・")}${LOAD_ERR.length?`<br>⚠ 読み込めなかった地点：${LOAD_ERR.join("・")}`:""}<br>
+    出典：${(ST&&ST.source)||"気象庁ホームページ"}（このツールで加工して作成）<br>
+    <span class="hint">※ ${isWeb?"毎朝9時ごろに自動で更新されます。ページを開き直すと最新になります。":"HTMLを開き直すと最新の取得データが反映されます。CSVの手動投入も引き続き使えます。"}地点は上の「地点の追加・変更」（各タブ）で変えられます。</span></div></div>`;
 }
 
 /* ---------- 公開版（GitHub Pages）で開いたときは説明文を差し替え ---------- */
@@ -1553,8 +1691,10 @@ if(/^https?:$/.test(location.protocol)){
   const d=document.querySelector("#pane-data .desc"); if(d) d.textContent="気象庁のデータは毎朝9時ごろ自動で取得・更新され、このページを開くと読み込まれます（下の枠に状態を表示）。";
   document.querySelectorAll("#pane-data .note").forEach(n=>{ n.innerHTML=n.innerHTML.replace("インターネット接続も不要です。","（気象データの読み込みのみインターネットを使います）"); });
 }
+initMyStations();
 wire();
 switchTab("data");
+ensureLoaded(UI.myStations).then(()=>{ UI.station=null; renderAll(); });
 </script>
 </body>
 </html>
