@@ -257,7 +257,7 @@
       </div>
       <div class="field">
         <label>集計日数（開始日から）</label>
-        <input type="number" id="tempDays" value="365" step="1" min="1" style="width:100px">
+        <input type="number" id="tempDays" value="30" step="1" min="1" style="width:100px">
       </div>
     </div>
     <div class="kpi" id="tempKpi"></div>
@@ -273,7 +273,7 @@
     <div class="row" style="margin-bottom:12px">
       <div class="field">
         <label>集計日数（開始日から）</label>
-        <input type="number" id="rainDays" value="365" step="1" min="1" style="width:100px">
+        <input type="number" id="rainDays" value="30" step="1" min="1" style="width:100px">
       </div>
     </div>
     <div class="kpi" id="rainKpi"></div>
@@ -1042,7 +1042,7 @@ function renderTemp(){
   const station=UI.station; if(!station){return;}
   const mode=UI.tempMode;
   const base=parseFloat(document.getElementById("baseTemp").value)||0;
-  const horizon=Math.max(1,parseInt(document.getElementById("tempDays").value)||365);
+  const horizon=Math.max(1,parseInt(document.getElementById("tempDays").value)||30);
   document.getElementById("baseTempField").style.opacity = mode==="effective"?"1":"0.4";
   const startMMDD=mmdd(UI.startDate);
   const curYear=currentSeasonYear(startMMDD);
@@ -1103,7 +1103,7 @@ function renderTemp(){
 /* ---------- 積算降水量タブ ---------- */
 function renderRain(){
   const station=UI.station; if(!station) return;
-  const horizon=Math.max(1,parseInt(document.getElementById("rainDays").value)||365);
+  const horizon=Math.max(1,parseInt(document.getElementById("rainDays").value)||30);
   const startMMDD=mmdd(UI.startDate);
   const curYear=currentSeasonYear(startMMDD);
   const years=seasonYears(station,startMMDD);
