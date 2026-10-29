@@ -1,4 +1,4 @@
-window.WEATHER_DATA=window.WEATHER_DATA||{};window.WEATHER_DATA["1021"]={"block":"1021","label":"伊勢崎","generatedAt":"2026-10-28T00:05:27.604Z",
+window.WEATHER_DATA=window.WEATHER_DATA||{};window.WEATHER_DATA["1021"]={"block":"1021","label":"伊勢崎","generatedAt":"2026-10-29T00:21:20.271Z",
 "records":{
 "1996-01-01":{"precip":0,"temp":4.9,"tmax":7.6,"tmin":2.2},
 "1996-01-02":{"precip":0,"temp":2.9,"tmax":8.6,"tmin":-1.6},
@@ -11251,7 +11251,8 @@ window.WEATHER_DATA=window.WEATHER_DATA||{};window.WEATHER_DATA["1021"]={"block"
 "2026-10-24":{"precip":10,"temp":16.2,"tmax":17.2,"tmin":14.7},
 "2026-10-25":{"precip":2,"temp":19.4,"tmax":22.3,"tmin":16.1},
 "2026-10-26":{"precip":19.5,"temp":17.4,"tmax":18.7,"tmin":16.3},
-"2026-10-27":{"precip":1,"temp":18.8,"tmax":23.3,"tmin":15.8}
+"2026-10-27":{"precip":1,"temp":18.8,"tmax":23.3,"tmin":15.8},
+"2026-10-28":{"precip":0,"temp":13.7,"tmax":17.7,"tmin":10.2}
 },
 "normals":{
 "01-01":{"precip":0.5,"temp":4.5,"tmax":10,"tmin":-0.3},
