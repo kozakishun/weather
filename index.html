@@ -135,12 +135,12 @@
 </header>
 
 <nav class="tabs wrap" id="tabs">
-  <button data-tab="data" class="active">データ管理</button>
-  <button data-tab="temp">積算温度</button>
+  <button data-tab="temp" class="active">積算温度</button>
   <button data-tab="rain">積算降水量</button>
   <button data-tab="similar">年比較・類似年</button>
   <button data-tab="outlook">この先の見通し</button>
   <button data-tab="monthly">月別サマリー</button>
+  <button data-tab="data">データ管理</button>
 </nav>
 
 <main class="wrap">
@@ -1695,7 +1695,7 @@ if(/^https?:$/.test(location.protocol)){
 }
 initMyStations();
 wire();
-switchTab("data");
+switchTab("temp"); // 開いたときは積算温度タブ（データ管理は一番後ろ）
 ensureLoaded(UI.myStations).then(()=>{ UI.station=null; renderAll(); });
 </script>
 </body>
