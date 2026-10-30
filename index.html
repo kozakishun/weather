@@ -129,7 +129,7 @@
 <body>
 <header>
   <div class="wrap">
-    <h1>🌱 気象データ分析ツール</h1>
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:10px"><h1>🌱 気象データ分析ツール</h1><button id="reloadBtn" style="flex:0 0 auto;background:rgba(255,255,255,.15);color:#fff;border:1px solid rgba(255,255,255,.6);border-radius:7px;padding:6px 10px;font-size:12px;cursor:pointer">🔄 最新に更新</button></div>
     <div class="sub">積算温度・積算降水量／年ごとの比較・類似年判定／この先の見通し（過去データからの推定）</div>
   </div>
 </header>
@@ -350,7 +350,7 @@
 
 <div class="foot">気象データ分析ツール（単一HTML・完全オフライン動作） / データはお使いのブラウザ内にのみ保存されます</div>
 
-<script src="stations.js"></script>
+<script>/* 地点一覧は毎回最新を読む（スマホに残った古いデータを使わない） */document.write('<script src="stations.js?r='+Date.now()+'"><\/script>');</script>
 <script>
 "use strict";
 /* ============================================================
@@ -1693,6 +1693,13 @@ if(/^https?:$/.test(location.protocol)){
   const d=document.querySelector("#pane-data .desc"); if(d) d.textContent="気象庁のデータは毎朝9時ごろ自動で取得・更新され、このページを開くと読み込まれます（下の枠に状態を表示）。";
   document.querySelectorAll("#pane-data .note").forEach(n=>{ n.innerHTML=n.innerHTML.replace("インターネット接続も不要です。","（気象データの読み込みのみインターネットを使います）"); });
 }
+/* ---------- 最新に更新（スマホのホーム画面アプリでは再読み込みボタンが無いため） ---------- */
+const PAGE_LOADED_AT=Date.now();
+function reloadLatest(){ const u=new URL(location.href); u.searchParams.set("r",Date.now()); location.replace(u.toString()); }
+document.getElementById("reloadBtn").onclick=reloadLatest;
+// しばらくぶりに画面に戻ってきたら（30分以上）自動で最新を読み直す
+document.addEventListener("visibilitychange",()=>{ if(document.visibilityState==="visible"&&Date.now()-PAGE_LOADED_AT>30*60*1000) reloadLatest(); });
+window.addEventListener("pageshow",e=>{ if(e.persisted&&Date.now()-PAGE_LOADED_AT>30*60*1000) reloadLatest(); });
 initMyStations();
 wire();
 switchTab("temp"); // 開いたときは積算温度タブ（データ管理は一番後ろ）
