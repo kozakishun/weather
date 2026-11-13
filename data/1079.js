@@ -1,4 +1,4 @@
-window.WEATHER_DATA=window.WEATHER_DATA||{};window.WEATHER_DATA["1079"]={"block":"1079","label":"酸ケ湯","generatedAt":"2026-11-12T00:43:31.962Z",
+window.WEATHER_DATA=window.WEATHER_DATA||{};window.WEATHER_DATA["1079"]={"block":"1079","label":"酸ケ湯","generatedAt":"2026-11-13T00:34:11.734Z",
 "records":{
 "1996-01-01":{"precip":6,"temp":-11,"tmax":-6.1,"tmin":-13.4},
 "1996-01-02":{"precip":0,"temp":-8.6,"tmax":-6.5,"tmin":-10.9},
@@ -11255,7 +11255,8 @@ window.WEATHER_DATA=window.WEATHER_DATA||{};window.WEATHER_DATA["1079"]={"block"
 "2026-11-08":{"precip":4.5,"temp":-2.8,"tmax":-1.6,"tmin":-3.9},
 "2026-11-09":{"precip":6.5,"temp":-2.7,"tmax":-1.2,"tmin":-4.6},
 "2026-11-10":{"precip":0.5,"temp":-5,"tmax":-3.8,"tmin":-5.7},
-"2026-11-11":{"precip":2,"temp":-3.5,"tmax":-1.1,"tmin":-5.1}
+"2026-11-11":{"precip":2,"temp":-3.5,"tmax":-1.1,"tmin":-5.1},
+"2026-11-12":{"precip":0,"temp":4.4,"tmax":7.6,"tmin":-2.1}
 },
 "normals":{
 "01-01":{"precip":4.8,"temp":-6.6,"tmax":-4.2,"tmin":-9.1},
