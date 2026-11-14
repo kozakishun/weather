@@ -1,4 +1,4 @@
-window.WEATHER_DATA=window.WEATHER_DATA||{};window.WEATHER_DATA["0351"]={"block":"0351","label":"桐生","generatedAt":"2026-11-13T00:34:32.816Z",
+window.WEATHER_DATA=window.WEATHER_DATA||{};window.WEATHER_DATA["0351"]={"block":"0351","label":"桐生","generatedAt":"2026-11-14T00:28:32.314Z",
 "records":{
 "1996-01-01":{"precip":0,"temp":4.9,"tmax":8,"tmin":1.6},
 "1996-01-02":{"precip":0,"temp":2,"tmax":7.6,"tmin":-3.7},
@@ -11273,7 +11273,8 @@ window.WEATHER_DATA=window.WEATHER_DATA||{};window.WEATHER_DATA["0351"]={"block"
 "2026-11-09":{"precip":0.5,"temp":9.9,"tmax":10.8,"tmin":9.1},
 "2026-11-10":{"precip":0,"temp":8.8,"tmax":11.5,"tmin":3.8},
 "2026-11-11":{"precip":0,"temp":8.8,"tmax":16.9,"tmin":2.1},
-"2026-11-12":{"precip":0,"temp":9.7,"tmax":19,"tmin":3.7}
+"2026-11-12":{"precip":0,"temp":9.7,"tmax":19,"tmin":3.7},
+"2026-11-13":{"precip":0,"temp":11.3,"tmax":20.9,"tmin":4.8}
 },
 "normals":{
 "01-01":{"precip":0.7,"temp":4,"tmax":9.7,"tmin":-1.3},
