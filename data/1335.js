@@ -1,4 +1,4 @@
-window.WEATHER_DATA=window.WEATHER_DATA||{};window.WEATHER_DATA["1335"]={"block":"1335","label":"菊川牧之原","generatedAt":"2026-11-24T00:38:11.808Z",
+window.WEATHER_DATA=window.WEATHER_DATA||{};window.WEATHER_DATA["1335"]={"block":"1335","label":"菊川牧之原","generatedAt":"2026-11-25T05:51:20.254Z",
 "records":{
 "1996-01-01":{"precip":0,"temp":4.8,"tmax":10,"tmin":0.1},
 "1996-01-02":{"precip":0,"temp":5.3,"tmax":10.4,"tmin":-0.5},
@@ -11284,7 +11284,8 @@ window.WEATHER_DATA=window.WEATHER_DATA||{};window.WEATHER_DATA["1335"]={"block"
 "2026-11-20":{"precip":0,"temp":7.4,"tmax":11.8,"tmin":3.7},
 "2026-11-21":{"precip":0,"temp":5.7,"tmax":11.6,"tmin":1.3},
 "2026-11-22":{"precip":0,"temp":6,"tmax":12.2,"tmin":0.9},
-"2026-11-23":{"precip":0,"temp":7.9,"tmax":14.3,"tmin":3}
+"2026-11-23":{"precip":0,"temp":7.9,"tmax":14.3,"tmin":3},
+"2026-11-24":{"precip":21,"temp":9.7,"tmax":13.8,"tmin":3.4}
 },
 "normals":{
 "01-01":{"precip":1.7,"temp":5.2,"tmax":10.4,"tmin":0.9},
