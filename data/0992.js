@@ -1,4 +1,4 @@
-window.WEATHER_DATA=window.WEATHER_DATA||{};window.WEATHER_DATA["0992"]={"block":"0992","label":"菅平","generatedAt":"2026-11-27T05:36:28.531Z",
+window.WEATHER_DATA=window.WEATHER_DATA||{};window.WEATHER_DATA["0992"]={"block":"0992","label":"菅平","generatedAt":"2026-11-28T05:13:21.672Z",
 "records":{
 "1996-01-01":{"precip":4,"temp":-6.2,"tmax":-2.4,"tmin":-8.7},
 "1996-01-02":{"precip":0,"temp":-5.4,"tmax":0.7,"tmin":-9.2},
@@ -11281,7 +11281,8 @@ window.WEATHER_DATA=window.WEATHER_DATA||{};window.WEATHER_DATA["0992"]={"block"
 "2026-11-23":{"precip":0,"temp":-0.7,"tmax":5.7,"tmin":-9.2},
 "2026-11-24":{"precip":14.5,"temp":3.6,"tmax":6.6,"tmin":-1.7},
 "2026-11-25":{"precip":0,"temp":-2,"tmax":2,"tmin":-4.4},
-"2026-11-26":{"precip":0,"temp":0.1,"tmax":7.3,"tmin":-7}
+"2026-11-26":{"precip":0,"temp":0.1,"tmax":7.3,"tmin":-7},
+"2026-11-27":{"precip":0.5,"temp":5.6,"tmax":12.8,"tmin":-4.5}
 },
 "normals":{
 "01-01":{"precip":2.6,"temp":-5.3,"tmax":-0.7,"tmin":-11.7},
